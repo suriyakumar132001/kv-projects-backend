@@ -9,6 +9,8 @@ const {
   applyLeave,
   getLeaves,
   getLeave,
+  updateLeave,
+  deleteLeave,
   approveLeave,
   rejectLeave,
 } = require("../controllers/leaveController");
@@ -53,4 +55,20 @@ router.put(
   rejectLeave
 );
 
+
+// Update Leave
+router.put(
+  "/:id",
+  protect,
+  authorize("owner", "hr"),
+  updateLeave
+);
+
+// Delete Leave
+router.delete(
+  "/:id",
+  protect,
+  authorize("owner"),
+  deleteLeave
+);
 module.exports = router;
