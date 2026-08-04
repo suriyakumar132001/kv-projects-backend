@@ -7,7 +7,6 @@ const Employee = require("../models/Employee");
 
 const applyLeave = async (req, res) => {
   try {
-
     const employee = await Employee.findById(req.body.employee);
 
     if (!employee) {
@@ -24,44 +23,169 @@ const applyLeave = async (req, res) => {
       message: "Leave Applied Successfully",
       leave,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
 // =====================================
 // Get All Leaves
+// Search + Filter + Pagination
 // =====================================
 
 const getLeaves = async (req, res) => {
-
   try {
+    const {
+      search,
+      status,
+      leaveType,
+      page = 1,
+      limit = 10,
+    } = req.query;
 
-    const leaves = await Leave.find()
+    const query = {};
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (leaveType) {
+      query.leaveType = leaveType;
+    }
+
+    let leaves = await Leave.find(query)
       .populate("employee", "employeeId name department")
-      .populate("approvedBy", "name");
+      .populate("approvedBy", "name")
+      .sort({ createdAt: -1 });
+
+    if (search) {
+      leaves = leaves.filter((leave) =>
+        leave.employee?.name
+          ?.toLowerCase()
+          .includes(search.toLowerCase())
+      );
+    }
+
+    const total = leaves.length;
+
+    const start = (page - 1) * limit;
+
+    const end = start + Number(limit);
+
+    leaves = leaves.slice(start, end);
 
     res.status(200).json({
       success: true,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit),
       count: leaves.length,
       leaves,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
+};
 
+// =====================================
+// Get Single Leave
+// =====================================
+
+const getLeave = async (req, res) => {
+  try {
+    const leave = await Leave.findById(req.params.id)
+      .populate("employee", "employeeId name department")
+      .populate("approvedBy", "name email");
+
+    if (!leave) {
+      return res.status(404).json({
+        success: false,
+        message: "Leave not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      leave,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// =====================================
+// Update Leave
+// =====================================
+
+const updateLeave = async (req, res) => {
+  try {
+    const leave = await Leave.findById(req.params.id);
+
+    if (!leave) {
+      return res.status(404).json({
+        success: false,
+        message: "Leave not found",
+      });
+    }
+
+    const updatedLeave = await Leave.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Leave Updated Successfully",
+      leave: updatedLeave,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// =====================================
+// Delete Leave
+// =====================================
+
+const deleteLeave = async (req, res) => {
+  try {
+    const leave = await Leave.findById(req.params.id);
+
+    if (!leave) {
+      return res.status(404).json({
+        success: false,
+        message: "Leave not found",
+      });
+    }
+
+    await leave.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: "Leave Deleted Successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 // =====================================
@@ -70,7 +194,6 @@ const getLeaves = async (req, res) => {
 
 const approveLeave = async (req, res) => {
   try {
-
     const leave = await Leave.findById(req.params.id);
 
     if (!leave) {
@@ -91,14 +214,11 @@ const approveLeave = async (req, res) => {
       message: "Leave Approved Successfully",
       leave,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
@@ -108,7 +228,6 @@ const approveLeave = async (req, res) => {
 
 const rejectLeave = async (req, res) => {
   try {
-
     const leave = await Leave.findById(req.params.id);
 
     if (!leave) {
@@ -129,54 +248,20 @@ const rejectLeave = async (req, res) => {
       message: "Leave Rejected Successfully",
       leave,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
-  }
-};
-
-// =====================================
-// Get Single Leave
-// =====================================
-
-const getLeave = async (req, res) => {
-  try {
-
-    const leave = await Leave.findById(req.params.id)
-      .populate("employee", "employeeId name department")
-      .populate("approvedBy", "name email");
-
-    if (!leave) {
-      return res.status(404).json({
-        success: false,
-        message: "Leave not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      leave,
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-
   }
 };
 
 module.exports = {
- applyLeave,
+  applyLeave,
   getLeaves,
   getLeave,
+  updateLeave,
+  deleteLeave,
   approveLeave,
-  rejectLeave
+  rejectLeave,
 };

@@ -8,9 +8,13 @@ const authorize = require("../middleware/roleMiddleware");
 const {
   checkIn,
   checkOut,
-  getAttendance
+  getAttendance,
+  getAttendanceById,
 } = require("../controllers/attendanceController");
 
+// ======================================
+// Employee Check In
+// ======================================
 router.post(
   "/checkin",
   protect,
@@ -18,18 +22,34 @@ router.post(
   checkIn
 );
 
-router.put(
-  "/checkout/:id",
-  protect,
-  authorize("owner", "hr", "siteengineer"),
-  checkOut
-);
-
+// ======================================
+// Get All Attendance
+// ======================================
 router.get(
   "/",
   protect,
   authorize("owner", "hr", "admin"),
   getAttendance
+);
+
+// ======================================
+// Get Single Attendance
+// ======================================
+router.get(
+  "/:id",
+  protect,
+  authorize("owner", "hr", "admin"),
+  getAttendanceById
+);
+
+// ======================================
+// Employee Check Out
+// ======================================
+router.put(
+  "/checkout/:id",
+  protect,
+  authorize("owner", "hr", "siteengineer"),
+  checkOut
 );
 
 module.exports = router;
