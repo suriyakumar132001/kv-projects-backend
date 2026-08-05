@@ -1,68 +1,52 @@
-// =========================================
-// KV Projects ERP
-// Material Model
-// =========================================
-
 const mongoose = require("mongoose");
 
-const materialSchema = new mongoose.Schema(
+const projectSchema = new mongoose.Schema(
   {
-    materialName: {
+    projectName: {
       type: String,
       required: true,
       trim: true,
     },
 
-    category: {
+    clientName: {
       type: String,
-      enum: [
-        "Cement",
-        "Steel",
-        "Sand",
-        "Bricks",
-        "Jelly",
-        "M-Sand",
-        "Electrical",
-        "Plumbing",
-        "Paint",
-        "Other",
-      ],
-      default: "Other",
+      required: true,
+      trim: true,
     },
 
-    unit: {
+    location: {
       type: String,
-      enum: [
-        "Bag",
-        "Kg",
-        "Ton",
-        "Nos",
-        "Feet",
-        "Meter",
-        "Litre",
-        "CFT",
-      ],
-      default: "Nos",
+      required: true,
+      trim: true,
     },
 
-    quantity: {
-      type: Number,
-      default: 0,
-    },
-
-    price: {
-      type: Number,
-      default: 0,
-    },
-
-    supplier: {
+    description: {
       type: String,
       default: "",
     },
 
-    site: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Site",
+    startDate: {
+      type: Date,
+    },
+
+    endDate: {
+      type: Date,
+    },
+
+    budget: {
+      type: Number,
+      default: 0,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "Pending",
+        "Running",
+        "Completed",
+        "On Hold",
+      ],
+      default: "Pending",
     },
 
     createdBy: {
@@ -75,4 +59,4 @@ const materialSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Material", materialSchema);
+module.exports = mongoose.model("Project", projectSchema);

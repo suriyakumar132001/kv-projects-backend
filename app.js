@@ -42,7 +42,7 @@ const budgetRoutes = require("./routes/budgetRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const pdfRoutes = require("./routes/pdfRoutes");
 const emailRoutes = require("./routes/emailRoutes");
-
+const projectRoutes = require("./routes/projectRoutes");
 // ===============================================
 // Create Express App
 // ===============================================
@@ -89,6 +89,7 @@ app.use("/api/grn", grnRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/material-issues", materialIssueRoutes);
 app.use("/api/employees",employeeRoutes);
+app.use("/api/projects", projectRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/leaves", leaveRoutes);
 app.use("/api/attendance", attendanceRoutes);
