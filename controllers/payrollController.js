@@ -104,7 +104,6 @@ const getPayrolls = async (req, res) => {
 
 const getPayroll = async (req, res) => {
   try {
-
     const payroll = await Payroll.findById(req.params.id)
       .populate("employee")
       .populate("createdBy", "name");
@@ -120,14 +119,11 @@ const getPayroll = async (req, res) => {
       success: true,
       payroll,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
@@ -137,7 +133,6 @@ const getPayroll = async (req, res) => {
 
 const updatePayroll = async (req, res) => {
   try {
-
     const payroll = await Payroll.findById(req.params.id);
 
     if (!payroll) {
@@ -147,9 +142,51 @@ const updatePayroll = async (req, res) => {
       });
     }
 
+    // Merge incoming fields with existing values so partial updates
+    // still compute correct totals.
+    const basicSalary = req.body.basicSalary ?? payroll.basicSalary;
+    const hra = req.body.hra ?? payroll.hra;
+    const allowance = req.body.allowance ?? payroll.allowance;
+    const overtime = req.body.overtime ?? payroll.overtime;
+    const bonus = req.body.bonus ?? payroll.bonus;
+
+    const pf = req.body.pf ?? payroll.pf;
+    const esi = req.body.esi ?? payroll.esi;
+    const professionalTax = req.body.professionalTax ?? payroll.professionalTax;
+
+    const totalEarnings =
+      Number(basicSalary) +
+      Number(hra) +
+      Number(allowance) +
+      Number(overtime) +
+      Number(bonus);
+
+    const totalDeductions =
+      Number(pf) +
+      Number(esi) +
+      Number(professionalTax);
+
+    const netSalary = totalEarnings - totalDeductions;
+
+    // Never trust totals sent by the client — always recompute server-side.
+    const updateData = {
+      ...req.body,
+      basicSalary,
+      hra,
+      allowance,
+      overtime,
+      bonus,
+      pf,
+      esi,
+      professionalTax,
+      totalEarnings,
+      totalDeductions,
+      netSalary,
+    };
+
     const updated = await Payroll.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       {
         new: true,
         runValidators: true,
@@ -161,14 +198,11 @@ const updatePayroll = async (req, res) => {
       message: "Payroll Updated Successfully",
       payroll: updated,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
@@ -178,7 +212,6 @@ const updatePayroll = async (req, res) => {
 
 const markAsPaid = async (req, res) => {
   try {
-
     const payroll = await Payroll.findById(req.params.id);
 
     if (!payroll) {
@@ -197,14 +230,11 @@ const markAsPaid = async (req, res) => {
       message: "Salary Marked as Paid",
       payroll,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
@@ -214,7 +244,6 @@ const markAsPaid = async (req, res) => {
 
 const deletePayroll = async (req, res) => {
   try {
-
     const payroll = await Payroll.findById(req.params.id);
 
     if (!payroll) {
@@ -230,14 +259,11 @@ const deletePayroll = async (req, res) => {
       success: true,
       message: "Payroll Deleted Successfully",
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
