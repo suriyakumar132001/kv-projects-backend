@@ -13,6 +13,7 @@ const router = express.Router();
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const upload = require("../config/multer");
+const { handleUploadErrors } = require("../config/multer");
 
 // =========================================
 // Controller
@@ -35,7 +36,8 @@ router.post(
   protect,
   authorize("siteengineer"),
   upload.array("images", 10),
-  createDPR
+  handleUploadErrors,
+  createDPR,
 );
 
 // =========================================
@@ -47,7 +49,7 @@ router.get(
   "/",
   protect,
   authorize("owner", "admin", "hr", "siteengineer"),
-  getAllReports
+  getAllReports,
 );
 
 // =========================================
@@ -58,7 +60,7 @@ router.get(
   "/:id",
   protect,
   authorize("owner", "admin", "hr", "siteengineer"),
-  getSingleReport
+  getSingleReport,
 );
 
 // =========================================
@@ -66,12 +68,7 @@ router.get(
 // Owner & Admin Only
 // =========================================
 
-router.delete(
-  "/:id",
-  protect,
-  authorize("owner", "admin"),
-  deleteReport
-);
+router.delete("/:id", protect, authorize("owner", "admin"), deleteReport);
 
 // =========================================
 
