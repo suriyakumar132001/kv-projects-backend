@@ -12,18 +12,34 @@ const Site = require("../models/Site");
 
 const createDPR = async (req, res) => {
   try {
-
     const {
       site,
       weather,
-      labour,
-      materials,
       progress,
       workDescription,
       tomorrowPlan,
       issues,
-      remarks
+      remarks,
     } = req.body;
+
+    // ================================
+    // Parse labour/materials
+    // multipart/form-data always sends these
+    // as JSON strings, not objects
+    // ================================
+
+    let labour = {};
+    let materials = {};
+
+    try {
+      labour = req.body.labour ? JSON.parse(req.body.labour) : {};
+      materials = req.body.materials ? JSON.parse(req.body.materials) : {};
+    } catch (parseError) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid labour or materials data",
+      });
+    }
 
     // ================================
     // Upload Images
@@ -46,7 +62,7 @@ const createDPR = async (req, res) => {
     if (!siteExists) {
       return res.status(404).json({
         success: false,
-        message: "Site not found"
+        message: "Site not found",
       });
     }
 
@@ -65,7 +81,7 @@ const createDPR = async (req, res) => {
       tomorrowPlan,
       issues,
       remarks,
-      images: imagePaths
+      images: imagePaths,
     });
 
     // ================================
@@ -78,18 +94,15 @@ const createDPR = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Daily Progress Report Submitted Successfully",
-      report
+      report,
     });
-
   } catch (error) {
-
     console.error(error);
 
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
-
   }
 };
 
@@ -98,9 +111,7 @@ const createDPR = async (req, res) => {
 // =========================================
 
 const getAllReports = async (req, res) => {
-
   try {
-
     let reports;
 
     if (
@@ -108,36 +119,28 @@ const getAllReports = async (req, res) => {
       req.user.role === "admin" ||
       req.user.role === "hr"
     ) {
-
       reports = await DPR.find()
         .populate("site", "siteName location progress")
         .populate("siteEngineer", "name email");
-
     } else {
-
       reports = await DPR.find({
-        siteEngineer: req.user._id
+        siteEngineer: req.user._id,
       })
         .populate("site", "siteName location progress")
         .populate("siteEngineer", "name email");
-
     }
 
     res.status(200).json({
       success: true,
       count: reports.length,
-      reports
+      reports,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
-
   }
-
 };
 
 // =========================================
@@ -145,36 +148,28 @@ const getAllReports = async (req, res) => {
 // =========================================
 
 const getSingleReport = async (req, res) => {
-
   try {
-
     const report = await DPR.findById(req.params.id)
       .populate("site")
       .populate("siteEngineer", "name email");
 
     if (!report) {
-
       return res.status(404).json({
         success: false,
-        message: "Report not found"
+        message: "Report not found",
       });
-
     }
 
     res.status(200).json({
       success: true,
-      report
+      report,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
-
   }
-
 };
 
 // =========================================
@@ -182,41 +177,33 @@ const getSingleReport = async (req, res) => {
 // =========================================
 
 const deleteReport = async (req, res) => {
-
   try {
-
     const report = await DPR.findById(req.params.id);
 
     if (!report) {
-
       return res.status(404).json({
         success: false,
-        message: "Report not found"
+        message: "Report not found",
       });
-
     }
 
     await report.deleteOne();
 
     res.status(200).json({
       success: true,
-      message: "Report Deleted Successfully"
+      message: "Report Deleted Successfully",
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
-
   }
-
 };
 
 module.exports = {
   createDPR,
   getAllReports,
   getSingleReport,
-  deleteReport
+  deleteReport,
 };
