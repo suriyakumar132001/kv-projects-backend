@@ -4,6 +4,8 @@
 // =======================================
 
 const User = require("../models/User");
+const Employee = require("../models/Employee");
+const provisionEmployeeForUser = require("../utils/provisionEmployeeForUser");
 
 // =======================================
 // Get All Users
@@ -11,12 +13,29 @@ const User = require("../models/User");
 
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    const users = await User.find().select("-password").lean();
+
+    // Flag which users already have a linked Employee profile, so the
+    // frontend can offer a "Create Employee Profile" button for the ones
+    // that don't (older accounts created before this feature existed).
+    const linkedEmployees = await Employee.find({
+      user: { $in: users.map((u) => u._id) },
+    }).select("user employeeId");
+
+    const linkedByUserId = new Map(
+      linkedEmployees.map((e) => [String(e.user), e.employeeId]),
+    );
+
+    const usersWithLinkStatus = users.map((u) => ({
+      ...u,
+      employeeLinked: linkedByUserId.has(String(u._id)),
+      employeeId: linkedByUserId.get(String(u._id)) || null,
+    }));
 
     res.status(200).json({
       success: true,
       count: users.length,
-      users,
+      users: usersWithLinkStatus,
     });
   } catch (error) {
     res.status(500).json({
@@ -208,10 +227,72 @@ const updateUserStatus = async (req, res) => {
   }
 };
 
+// =======================================
+// Create/Link an Employee profile for an EXISTING user
+// (Owner & Admin only — for accounts created before the
+//  auto-link-on-registration feature existed)
+// =======================================
+
+const provisionEmployee = async (req, res) => {
+  try {
+    const targetUser = await User.findById(req.params.id);
+
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (targetUser.role === "owner") {
+      return res.status(400).json({
+        success: false,
+        message: "The Owner account doesn't need an Employee profile.",
+      });
+    }
+
+    const existing = await Employee.findOne({ user: targetUser._id });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "This user already has a linked Employee profile.",
+        employee: existing,
+      });
+    }
+
+    const employee = await provisionEmployeeForUser({
+      user: targetUser,
+      phone: targetUser.phone,
+      createdById: req.user._id,
+    });
+
+    if (!employee) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not create an Employee profile — check server logs (a duplicate email in Employees is the most common cause).",
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Employee profile created and linked successfully",
+      employee,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUser,
   updateProfile,
   changePassword,
   updateUserStatus,
+  provisionEmployee,
 };
