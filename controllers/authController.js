@@ -144,8 +144,8 @@ const register = async (req, res) => {
     // Owner/Admin creating staff: no token is issued for the new
     // account — the caller stays logged in as themselves, and the
     // new HR/Admin/Site Engineer logs in separately with their own credentials.
-    let emailSent = false;
     let employee = null;
+    let emailQueued = false;
 
     if (totalUsers > 0) {
       // Auto-provision a linked Employee record (salary/department left
@@ -156,9 +156,11 @@ const register = async (req, res) => {
         createdById: req.user._id,
       });
 
-      // Only for the "Owner/Admin creates staff" path — the bootstrap
-      // Owner already knows their own password, no email needed.
-      emailSent = await sendWelcomeEmail({
+      // Fire-and-forget: don't make the Owner/Admin wait for the Gmail
+      // SMTP round-trip (often several seconds) before getting a response.
+      // sendWelcomeEmail already catches its own errors and just logs them.
+      emailQueued = true;
+      sendWelcomeEmail({
         name: user.name,
         email: user.email,
         password, // plain-text password, captured before hashing
@@ -172,10 +174,8 @@ const register = async (req, res) => {
       message:
         totalUsers === 0
           ? "Owner account created successfully"
-          : emailSent
-            ? "User registered successfully. Login details emailed to them."
-            : "User registered successfully, but the welcome email could not be sent — please share their password manually.",
-      emailSent,
+          : "User registered successfully. Login details are being emailed to them.",
+      emailQueued,
       employeeLinked: !!employee,
       user: {
         id: user._id,

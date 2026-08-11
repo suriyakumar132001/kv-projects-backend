@@ -1,15 +1,26 @@
 const nodemailer = require("nodemailer");
 
-const sendEmail = async ({ to, subject, html, attachments = [] }) => {
-  try {
-    const transporter = nodemailer.createTransport({
+// Reuse one transporter across calls instead of creating a fresh SMTP
+// connection every time — creating a new connection per email adds
+// avoidable latency (and Gmail can rate-limit/slow down rapid new
+// connections from the same account).
+let transporter = null;
+
+const getTransporter = () => {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
     });
+  }
+  return transporter;
+};
 
+const sendEmail = async ({ to, subject, html, attachments = [] }) => {
+  try {
     const mailOptions = {
       from: `"KV Projects ERP" <${process.env.EMAIL_USER}>`,
       to,
@@ -18,7 +29,7 @@ const sendEmail = async ({ to, subject, html, attachments = [] }) => {
       attachments,
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    const info = await getTransporter().sendMail(mailOptions);
 
     console.log("Email Sent:", info.messageId);
 
