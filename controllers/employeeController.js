@@ -97,7 +97,7 @@ const getEmployee = async (req, res) => {
   try {
     const employee = await Employee.findById(req.params.id).populate(
       "createdBy",
-      "name email"
+      "name email",
     );
 
     if (!employee) {
@@ -140,7 +140,7 @@ const updateEmployee = async (req, res) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     );
 
     res.status(200).json({
@@ -185,10 +185,41 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
+// =====================================
+// Get My Employee Profile
+// (any logged-in user — used by Site Engineer's
+//  self-only Mark Attendance screen)
+// =====================================
+
+const getMyEmployee = async (req, res) => {
+  try {
+    const employee = await Employee.findOne({ user: req.user._id });
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "No employee profile is linked to your account yet. Contact your Admin/Owner.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      employee,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createEmployee,
   getEmployees,
   getEmployee,
+  getMyEmployee,
   updateEmployee,
   deleteEmployee,
 };

@@ -9,12 +9,17 @@ const {
   createEmployee,
   getEmployees,
   getEmployee,
+  getMyEmployee,
   updateEmployee,
   deleteEmployee,
 } = require("../controllers/employeeController");
 
 // Create Employee
 router.post("/", protect, authorize("owner", "hr"), createEmployee);
+
+// Get My Own Employee Profile
+// (must come before "/:id" — any logged-in role)
+router.get("/me", protect, getMyEmployee);
 
 // Get All Employees
 router.get(
