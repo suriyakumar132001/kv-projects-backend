@@ -288,6 +288,67 @@ const provisionEmployee = async (req, res) => {
   }
 };
 
+// =======================================
+// Delete a User
+// (Owner & Admin only — see userRoutes.js)
+//
+// Deletes the login account AND its linked Employee record (so they
+// disappear from the Employees page too). Attendance/Payroll history
+// tied to that Employee is intentionally left alone for record-keeping —
+// it will just show under a removed employee.
+// =======================================
+
+const deleteUser = async (req, res) => {
+  try {
+    const targetUser = await User.findById(req.params.id);
+
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (String(targetUser._id) === String(req.user._id)) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot delete your own account.",
+      });
+    }
+
+    // Nobody can delete the Owner account, and Admins can't delete
+    // other Admins — only the Owner manages Admin accounts.
+    if (targetUser.role === "owner") {
+      return res.status(403).json({
+        success: false,
+        message: "The Owner account cannot be deleted.",
+      });
+    }
+
+    if (req.user.role === "admin" && targetUser.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only the Owner can manage Admin accounts.",
+      });
+    }
+
+    // Cascade: remove their linked Employee record too (if any).
+    await Employee.deleteOne({ user: targetUser._id });
+
+    await User.findByIdAndDelete(targetUser._id);
+
+    res.status(200).json({
+      success: true,
+      message: `${targetUser.name} was deleted, along with their Employee profile.`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUser,
@@ -295,4 +356,5 @@ module.exports = {
   changePassword,
   updateUserStatus,
   provisionEmployee,
+  deleteUser,
 };
