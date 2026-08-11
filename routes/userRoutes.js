@@ -12,6 +12,7 @@ const {
   changePassword,
   updateUserStatus,
   provisionEmployee,
+  deleteUser,
 } = require("../controllers/userController");
 
 // Update My Profile (any logged-in user)
@@ -53,5 +54,10 @@ router.post(
   authorize("owner", "admin"),
   provisionEmployee,
 );
+
+// Only Owner & Admin can delete a user (also removes their linked
+// Employee record — see deleteUser in userController.js)
+
+router.delete("/:id", protect, authorize("owner", "admin"), deleteUser);
 
 module.exports = router;
