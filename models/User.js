@@ -51,10 +51,23 @@ const userSchema = new mongoose.Schema(
       enum: ["Active", "Inactive"],
       default: "Active",
     },
+
+    // Forgot Password — stores a HASHED version of the reset token
+    // (never the raw token, same principle as the password itself)
+    // plus an expiry so old/unused tokens can't be reused later.
+    resetPasswordToken: {
+      type: String,
+      default: undefined,
+    },
+
+    resetPasswordExpire: {
+      type: Date,
+      default: undefined,
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Hash Password

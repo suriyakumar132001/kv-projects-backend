@@ -3,6 +3,8 @@
 // Authentication Controller
 // =============================================
 
+const crypto = require("crypto");
+
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const sendEmail = require("../utils/sendEmail");
@@ -277,7 +279,170 @@ const login = async (req, res) => {
   }
 };
 
+// =============================================
+// Forgot Password
+//
+// User submits their email. If it matches an account, we generate a
+// random reset token, save only its HASH + a 30-minute expiry on the
+// user, and email them a link containing the RAW token. The raw token
+// is never stored anywhere — only its hash — so even if the database
+// leaked, nobody could use it to reset a password.
+//
+// Always responds with the same success message whether or not the
+// email exists, so this endpoint can't be used to check which emails
+// are registered.
+// =============================================
+
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide your email",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    const genericResponse = {
+      success: true,
+      message:
+        "If an account exists for that email, a password reset link has been sent.",
+    };
+
+    if (!user) {
+      return res.status(200).json(genericResponse);
+    }
+
+    // Generate a random raw token (sent to the user) and store only
+    // its SHA-256 hash on the user document.
+    const rawToken = crypto.randomBytes(32).toString("hex");
+
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+    user.resetPasswordExpire = Date.now() + 30 * 60 * 1000; // 30 minutes
+
+    await user.save();
+
+    const resetUrl = `${
+      process.env.FRONTEND_URL || "http://localhost:5173"
+    }/reset-password/${rawToken}`;
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your KV Projects ERP password",
+        html: `
+          <h2>KV Projects ERP</h2>
+
+          <p>Hi ${user.name},</p>
+
+          <p>We received a request to reset your password. Click the link below to choose a new one. This link expires in 30 minutes.</p>
+
+          <p><a href="${resetUrl}">${resetUrl}</a></p>
+
+          <p>If you didn't request this, you can safely ignore this email — your password will remain unchanged.</p>
+
+          <br>
+          <p>Thank you.</p>
+        `,
+      });
+    } catch (emailError) {
+      // Roll back the token so a failed email doesn't leave a dangling,
+      // unusable reset request sitting on the account.
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save();
+
+      console.error("Password reset email failed to send:", emailError.message);
+
+      return res.status(500).json({
+        success: false,
+        message: "Could not send reset email. Please try again later.",
+      });
+    }
+
+    return res.status(200).json(genericResponse);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// =============================================
+// Reset Password
+//
+// User arrives here from the emailed link, which contains the RAW
+// token. We hash it the same way and look for a user whose stored
+// hash matches AND whose expiry hasn't passed.
+// =============================================
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a new password",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This reset link is invalid or has expired. Please request a new one.",
+      });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password has been reset successfully. You can now log in.",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
+  forgotPassword,
+  resetPassword,
 };
