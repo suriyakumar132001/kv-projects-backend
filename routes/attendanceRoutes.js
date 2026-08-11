@@ -19,7 +19,7 @@ router.post(
   "/checkin",
   protect,
   authorize("owner", "hr", "siteengineer"),
-  checkIn
+  checkIn,
 );
 
 // ======================================
@@ -28,8 +28,8 @@ router.post(
 router.get(
   "/",
   protect,
-  authorize("owner", "hr", "admin"),
-  getAttendance
+  authorize("owner", "admin", "hr", "siteengineer"),
+  getAttendance,
 );
 
 // ======================================
@@ -38,8 +38,8 @@ router.get(
 router.get(
   "/:id",
   protect,
-  authorize("owner", "hr", "admin"),
-  getAttendanceById
+  authorize("owner", "admin", "hr", "siteengineer"),
+  getAttendanceById,
 );
 
 // ======================================
@@ -49,7 +49,7 @@ router.put(
   "/checkout/:id",
   protect,
   authorize("owner", "hr", "siteengineer"),
-  checkOut
+  checkOut,
 );
 
 module.exports = router;
