@@ -10,6 +10,7 @@ const {
   getUser,
   updateProfile,
   changePassword,
+  updateUserStatus,
 } = require("../controllers/userController");
 
 // Update My Profile (any logged-in user)
@@ -31,6 +32,15 @@ router.get(
   protect,
   authorize("owner", "admin", "hr", "siteengineer"),
   getUser,
+);
+
+// Only Owner & Admin can activate/deactivate a user
+
+router.patch(
+  "/:id/status",
+  protect,
+  authorize("owner", "admin"),
+  updateUserStatus,
 );
 
 module.exports = router;

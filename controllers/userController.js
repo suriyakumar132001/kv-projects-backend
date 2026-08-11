@@ -11,7 +11,6 @@ const User = require("../models/User");
 
 const getAllUsers = async (req, res) => {
   try {
-
     const users = await User.find().select("-password");
 
     res.status(200).json({
@@ -19,14 +18,11 @@ const getAllUsers = async (req, res) => {
       count: users.length,
       users,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
@@ -36,30 +32,24 @@ const getAllUsers = async (req, res) => {
 
 const getUser = async (req, res) => {
   try {
-
     const user = await User.findById(req.params.id).select("-password");
 
     if (!user) {
-
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
-
     }
 
     res.json({
       success: true,
       user,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
@@ -69,7 +59,6 @@ const getUser = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-
     const { name, phone } = req.body;
 
     const user = await User.findById(req.user._id);
@@ -99,14 +88,11 @@ const updateProfile = async (req, res) => {
         status: user.status,
       },
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
@@ -116,7 +102,6 @@ const updateProfile = async (req, res) => {
 
 const changePassword = async (req, res) => {
   try {
-
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
@@ -152,14 +137,74 @@ const changePassword = async (req, res) => {
       success: true,
       message: "Password Changed Successfully",
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
+  }
+};
 
+// =======================================
+// Activate / Deactivate a User
+// (Owner & Admin only — see userRoutes.js)
+// =======================================
+
+const updateUserStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!["Active", "Inactive"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Status must be 'Active' or 'Inactive'",
+      });
+    }
+
+    const targetUser = await User.findById(req.params.id);
+
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Nobody can deactivate the Owner account, and Admins can't touch
+    // other Admins — only the Owner manages Admin accounts.
+    if (targetUser.role === "owner") {
+      return res.status(403).json({
+        success: false,
+        message: "The Owner account cannot be deactivated.",
+      });
+    }
+
+    if (req.user.role === "admin" && targetUser.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only the Owner can manage Admin accounts.",
+      });
+    }
+
+    targetUser.status = status;
+    await targetUser.save();
+
+    res.status(200).json({
+      success: true,
+      message: `User ${status === "Active" ? "activated" : "deactivated"} successfully`,
+      user: {
+        id: targetUser._id,
+        name: targetUser.name,
+        email: targetUser.email,
+        role: targetUser.role,
+        status: targetUser.status,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -168,4 +213,5 @@ module.exports = {
   getUser,
   updateProfile,
   changePassword,
+  updateUserStatus,
 };
