@@ -4,10 +4,9 @@
 // =============================================
 
 const User = require("../models/User");
-const Employee = require("../models/Employee");
 const generateToken = require("../utils/generateToken");
 const sendEmail = require("../utils/sendEmail");
-const generateEmployeeId = require("../utils/generateEmployeeId");
+const provisionEmployeeForUser = require("../utils/provisionEmployeeForUser");
 
 const ROLE_LABELS = {
   owner: "Owner",
@@ -47,35 +46,6 @@ const sendWelcomeEmail = async ({ name, email, password, role, createdBy }) => {
   } catch (error) {
     console.error("Welcome email failed to send:", error.message);
     return false;
-  }
-};
-
-// Auto-creates a bare-bones Employee record linked to a newly registered
-// User, so every login also shows up in Employee/Attendance/Payroll.
-// HR/Admin fill in salary, department, designation, etc. afterwards from
-// the Employees page. Best-effort — if this fails, the login account is
-// still created; we just log the problem.
-const provisionEmployeeForUser = async ({ user, phone, createdById }) => {
-  try {
-    const employeeId = await generateEmployeeId();
-
-    const employee = await Employee.create({
-      employeeId,
-      name: user.name,
-      email: user.email,
-      phone: phone || "",
-      department: ROLE_LABELS[user.role] || user.role,
-      designation: ROLE_LABELS[user.role] || user.role,
-      // salary/joiningDate use schema defaults (0 / today) — HR/Admin
-      // sets the real salary from the Employee edit page.
-      user: user._id,
-      createdBy: createdById,
-    });
-
-    return employee;
-  } catch (error) {
-    console.error("Auto Employee provisioning failed:", error.message);
-    return null;
   }
 };
 

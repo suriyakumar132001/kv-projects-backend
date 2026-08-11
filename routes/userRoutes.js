@@ -11,6 +11,7 @@ const {
   updateProfile,
   changePassword,
   updateUserStatus,
+  provisionEmployee,
 } = require("../controllers/userController");
 
 // Update My Profile (any logged-in user)
@@ -41,6 +42,16 @@ router.patch(
   protect,
   authorize("owner", "admin"),
   updateUserStatus,
+);
+
+// Only Owner & Admin can create/link an Employee profile for an
+// existing user (accounts created before auto-linking existed)
+
+router.post(
+  "/:id/provision-employee",
+  protect,
+  authorize("owner", "admin"),
+  provisionEmployee,
 );
 
 module.exports = router;
