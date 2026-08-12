@@ -10,6 +10,8 @@ const {
   checkOut,
   getAttendance,
   getAttendanceById,
+  updateAttendance,
+  deleteAttendance,
 } = require("../controllers/attendanceController");
 
 // ======================================
@@ -18,7 +20,7 @@ const {
 router.post(
   "/checkin",
   protect,
-  authorize("owner", "hr", "siteengineer"),
+  authorize("owner", "admin", "hr", "siteengineer"),
   checkIn,
 );
 
@@ -48,8 +50,28 @@ router.get(
 router.put(
   "/checkout/:id",
   protect,
-  authorize("owner", "hr", "siteengineer"),
+  authorize("owner", "admin", "hr", "siteengineer"),
   checkOut,
+);
+
+// ======================================
+// Update Attendance
+// ======================================
+router.put(
+  "/:id",
+  protect,
+  authorize("owner", "admin"),
+  updateAttendance,
+);
+
+// ======================================
+// Delete Attendance
+// ======================================
+router.delete(
+  "/:id",
+  protect,
+  authorize("owner", "admin"),
+  deleteAttendance,
 );
 
 module.exports = router;

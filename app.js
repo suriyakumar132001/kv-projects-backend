@@ -10,7 +10,6 @@ const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const path = require("path");
 
-
 // ===============================================
 // Import Routes
 // ===============================================
@@ -28,7 +27,7 @@ const purchaseOrderRoutes = require("./routes/purchaseOrderRoutes");
 const grnRoutes = require("./routes/grnRoutes");
 const inventoryRoutes = require("./routes/inventoryRoutes");
 const materialIssueRoutes = require("./routes/materialIssueRoutes");
-const employeeRoutes=require("./routes/employeeRoutes");
+const employeeRoutes = require("./routes/employeeRoutes");
 const payrollRoutes = require("./routes/payrollRoutes");
 const leaveRoutes = require("./routes/leaveRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
@@ -43,6 +42,7 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const pdfRoutes = require("./routes/pdfRoutes");
 const emailRoutes = require("./routes/emailRoutes");
 const projectRoutes = require("./routes/projectRoutes");
+
 // ===============================================
 // Create Express App
 // ===============================================
@@ -50,58 +50,111 @@ const projectRoutes = require("./routes/projectRoutes");
 const app = express();
 
 // ===============================================
-// Middlewares
+// Security & Core Middleware
 // ===============================================
 
-app.use(cors());
-app.use(helmet());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+  }),
+);
+
 app.use(morgan("dev"));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "10mb",
+  }),
+);
 
 app.use(cookieParser());
 
 // ===============================================
-// Static Folder (Uploaded Images)
+// Static Files
 // ===============================================
 
-app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "uploads"))
-);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// ===============================================
+// Health Check
+// ===============================================
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "KV Projects ERP API is running",
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // ===============================================
 // API Routes
 // ===============================================
 
 app.use("/api/auth", authRoutes);
+
 app.use("/api/dashboard", dashboardRoutes);
+
 app.use("/api/users", userRoutes);
+
 app.use("/api/sites", siteRoutes);
+
 app.use("/api/dpr", dprRoutes);
+
 app.use("/api/materials", materialRoutes);
+
 app.use("/api/labours", labourRoutes);
+
 app.use("/api/expenses", expenseRoutes);
+
 app.use("/api/vendors", vendorRoutes);
+
 app.use("/api/purchase-orders", purchaseOrderRoutes);
+
 app.use("/api/grn", grnRoutes);
+
 app.use("/api/inventory", inventoryRoutes);
+
 app.use("/api/material-issues", materialIssueRoutes);
-app.use("/api/employees",employeeRoutes);
+
+app.use("/api/employees", employeeRoutes);
+
 app.use("/api/projects", projectRoutes);
+
 app.use("/api/payroll", payrollRoutes);
+
 app.use("/api/leaves", leaveRoutes);
+
 app.use("/api/attendance", attendanceRoutes);
+
 app.use("/api/tasks", taskRoutes);
+
 app.use("/api/assets", assetRoutes);
+
 app.use("/api/clients", clientRoutes);
+
 app.use("/api/quotations", quotationRoutes);
+
 app.use("/api/invoices", invoiceRoutes);
+
 app.use("/api/payments", paymentRoutes);
+
 app.use("/api/budgets", budgetRoutes);
+
 app.use("/api/analytics", analyticsRoutes);
+
 app.use("/api/pdf", pdfRoutes);
+
 app.use("/api/email", emailRoutes);
 
 // ===============================================
@@ -116,13 +169,29 @@ app.get("/", (req, res) => {
 });
 
 // ===============================================
-// 404 Route
+// 404 Handler
 // ===============================================
 
 app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: "API Route Not Found",
+    path: req.originalUrl,
+  });
+});
+
+// ===============================================
+// Global Error Handler
+// ===============================================
+
+app.use((err, req, res, next) => {
+  console.error("GLOBAL ERROR:", err);
+
+  const statusCode = err.statusCode || 500;
+
+  res.status(statusCode).json({
+    success: false,
+    message: err.message || "Internal Server Error",
   });
 });
 
