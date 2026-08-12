@@ -34,7 +34,7 @@ const {
 router.post(
   "/",
   protect,
-  authorize("siteengineer"),
+  authorize("siteengineer", "hr"),
   upload.array("images", 10),
   handleUploadErrors,
   createDPR,
