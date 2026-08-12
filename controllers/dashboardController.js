@@ -17,8 +17,15 @@ const getStats = async () => {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
   const attendance = await Attendance.countDocuments({
-    attendanceDate: { $gte: todayStart },
+    attendanceDate: { $gte: todayStart, $lte: todayEnd },
+  });
+
+  const reportsToday = await require("../models/DPR").countDocuments({
+    reportDate: { $gte: todayStart, $lte: todayEnd },
   });
 
   // Total revenue from Paid invoices
@@ -29,7 +36,7 @@ const getStats = async () => {
 
   const revenue = revenueResult[0]?.total || 0;
 
-  return { employees, projects, attendance, revenue };
+  return { employees, projects, attendance, reportsToday, revenue };
 };
 
 const ownerDashboard = async (req, res) => {

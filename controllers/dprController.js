@@ -112,23 +112,32 @@ const createDPR = async (req, res) => {
 
 const getAllReports = async (req, res) => {
   try {
-    let reports;
+    const { today } = req.query;
+
+    const query = {};
+
+    if (today === "true") {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      query.reportDate = {
+        $gte: todayStart,
+        $lte: todayEnd,
+      };
+    }
 
     if (
-      req.user.role === "owner" ||
-      req.user.role === "admin" ||
-      req.user.role === "hr"
+      req.user.role === "siteengineer"
     ) {
-      reports = await DPR.find()
-        .populate("site", "siteName location progress")
-        .populate("siteEngineer", "name email");
-    } else {
-      reports = await DPR.find({
-        siteEngineer: req.user._id,
-      })
-        .populate("site", "siteName location progress")
-        .populate("siteEngineer", "name email");
+      query.siteEngineer = req.user._id;
     }
+
+    const reports = await DPR.find(query)
+      .populate("site", "siteName location progress")
+      .populate("siteEngineer", "name email");
 
     res.status(200).json({
       success: true,
