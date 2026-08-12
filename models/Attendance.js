@@ -37,6 +37,11 @@ const attendanceSchema = new mongoose.Schema(
       default: "Present",
     },
 
+    site: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Site",
+    },
+
     remarks: {
       type: String,
       default: "",
