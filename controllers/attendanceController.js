@@ -16,9 +16,22 @@ const checkIn = async (req, res) => {
     let employeeId = req.body.employee;
     let siteId = req.body.site;
 
-    // Site Engineers can only ever check themselves in — the employee
+    // Owner cannot check in attendance at all — view-only role.
+    if (req.user.role === "owner") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Owner accounts cannot mark attendance. You can only view attendance records.",
+      });
+    }
+
+    // Admin, HR, and Site Engineer can only ever check themselves in — the employee
     // they're linked to, never anyone chosen from a dropdown/body param.
-    if (req.user.role === "siteengineer") {
+    if (
+      req.user.role === "admin" ||
+      req.user.role === "hr" ||
+      req.user.role === "siteengineer"
+    ) {
       const myEmployee = await findOwnEmployee(req.user._id);
 
       if (!myEmployee) {
@@ -31,32 +44,35 @@ const checkIn = async (req, res) => {
 
       employeeId = myEmployee._id;
 
-      const assignedSites = await Site.find({
-        siteEngineer: req.user._id,
-      });
-
-      if (!assignedSites.length) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "No site is assigned to your account yet. Contact your Admin/Owner.",
+      // Site Engineers have restricted site selection; Admin/HR can select from all sites
+      if (req.user.role === "siteengineer") {
+        const assignedSites = await Site.find({
+          siteEngineer: req.user._id,
         });
-      }
 
-      if (siteId) {
-        const validSite = assignedSites.some(
-          (site) => site._id.toString() === siteId,
-        );
-
-        if (!validSite) {
+        if (!assignedSites.length) {
           return res.status(400).json({
             success: false,
             message:
-              "Selected site is not assigned to your account.",
+              "No site is assigned to your account yet. Contact your Admin/Owner.",
           });
         }
-      } else {
-        siteId = assignedSites[0]._id;
+
+        if (siteId) {
+          const validSite = assignedSites.some(
+            (site) => site._id.toString() === siteId,
+          );
+
+          if (!validSite) {
+            return res.status(400).json({
+              success: false,
+              message:
+                "Selected site is not assigned to your account.",
+            });
+          }
+        } else {
+          siteId = assignedSites[0]._id;
+        }
       }
     }
 
@@ -136,8 +152,12 @@ const checkOut = async (req, res) => {
       });
     }
 
-    // Site Engineers can only check themselves out.
-    if (req.user.role === "siteengineer") {
+    // Admin, HR, and Site Engineers can only check themselves out.
+    if (
+      req.user.role === "admin" ||
+      req.user.role === "hr" ||
+      req.user.role === "siteengineer"
+    ) {
       const myEmployee = await findOwnEmployee(req.user._id);
 
       if (
@@ -368,6 +388,90 @@ const updateAttendance = async (req, res) => {
   }
 };
 
+// ======================================
+// Get Today's Attendance Summary
+// ======================================
+const getTodayAttendance = async (req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Fetch all active employees
+    const allEmployees = await Employee.find({ status: "Active" })
+      .select("_id employeeId name department email")
+      .sort({ name: 1 });
+
+    // Fetch today's attendance records
+    const todayAttendance = await Attendance.find({
+      attendanceDate: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    })
+      .populate("employee", "_id employeeId name department email")
+      .populate("site", "siteName projectName");
+
+    // Create a map of employee IDs to their attendance records for quick lookup
+    const attendanceMap = {};
+    todayAttendance.forEach((record) => {
+      attendanceMap[record.employee._id.toString()] = record;
+    });
+
+    // Build attendance summary: each employee with their status
+    const summary = allEmployees.map((employee) => {
+      const attendance = attendanceMap[employee._id.toString()];
+
+      if (!attendance) {
+        return {
+          employeeId: employee.employeeId,
+          name: employee.name,
+          department: employee.department,
+          email: employee.email,
+          status: "Not Marked",
+          checkIn: null,
+          checkOut: null,
+        };
+      }
+
+      return {
+        employeeId: attendance.employee.employeeId,
+        name: attendance.employee.name,
+        department: attendance.employee.department,
+        email: attendance.employee.email,
+        status: attendance.status || "Present",
+        checkIn: attendance.checkIn,
+        checkOut: attendance.checkOut,
+        site: attendance.site?.siteName,
+      };
+    });
+
+    // Calculate statistics
+    const stats = {
+      totalEmployees: allEmployees.length,
+      presentCount: summary.filter((s) => s.status === "Present").length,
+      absentCount: summary.filter((s) => s.status === "Absent").length,
+      halfDayCount: summary.filter((s) => s.status === "Half Day").length,
+      leaveCount: summary.filter((s) => s.status === "Leave").length,
+      notMarkedCount: summary.filter((s) => s.status === "Not Marked").length,
+    };
+
+    res.status(200).json({
+      success: true,
+      date: new Date().toISOString().split("T")[0],
+      stats,
+      records: summary,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   checkIn,
   checkOut,
@@ -375,4 +479,5 @@ module.exports = {
   getAttendanceById,
   updateAttendance,
   deleteAttendance,
+  getTodayAttendance,
 };

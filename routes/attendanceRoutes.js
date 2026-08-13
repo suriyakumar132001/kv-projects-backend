@@ -12,6 +12,7 @@ const {
   getAttendanceById,
   updateAttendance,
   deleteAttendance,
+  getTodayAttendance,
 } = require("../controllers/attendanceController");
 
 // ======================================
@@ -20,8 +21,18 @@ const {
 router.post(
   "/checkin",
   protect,
-  authorize("owner", "admin", "hr", "siteengineer"),
+  authorize("admin", "hr", "siteengineer"),
   checkIn,
+);
+
+// ======================================
+// Get Today's Attendance Summary
+// ======================================
+router.get(
+  "/today",
+  protect,
+  authorize("owner", "admin"),
+  getTodayAttendance,
 );
 
 // ======================================
