@@ -159,8 +159,6 @@ projectSchema.pre("validate", function (next) {
   if (this.startDate && this.endDate && this.endDate < this.startDate) {
     return next(new Error("End date cannot be before start date."));
   }
-
-  next();
 });
 
 // ===============================================

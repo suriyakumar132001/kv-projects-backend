@@ -5,6 +5,7 @@
 
 const DPR = require("../models/DPR");
 const Site = require("../models/Site");
+const Project = require("../models/Project");
 
 // =========================================
 // Create Daily Progress Report
@@ -91,6 +92,21 @@ const createDPR = async (req, res) => {
     siteExists.progress = progress;
     await siteExists.save();
 
+    // ================================
+    // Sync Project Progress
+    // ================================
+    //
+    // Project.progress is a separate field from
+    // Site.progress and was never being updated here,
+    // which meant ProjectDashboard/ProjectDetails and
+    // the "running but 0% progress" alert always showed
+    // stale, manually-entered numbers. Using updateMany
+    // (not findOneAndUpdate) in case more than one
+    // project is ever linked to the same site.
+    // ================================
+
+    await Project.updateMany({ site: siteExists._id }, { $set: { progress } });
+
     res.status(201).json({
       success: true,
       message: "Daily Progress Report Submitted Successfully",
@@ -112,9 +128,63 @@ const createDPR = async (req, res) => {
 
 const getAllReports = async (req, res) => {
   try {
-    const { today } = req.query;
+    const { today, site, project, startDate, endDate } = req.query;
 
     const query = {};
+
+    // ---------------------------------------------
+    // Filter by Site directly
+    // ---------------------------------------------
+
+    if (site) {
+      query.site = site;
+    }
+
+    // ---------------------------------------------
+    // Filter by Project
+    // (Project -> Site -> DPR, since DPR only
+    // stores a site reference, not a project one)
+    // ---------------------------------------------
+
+    if (project) {
+      const projectDoc = await Project.findById(project).select("site");
+
+      if (!projectDoc || !projectDoc.site) {
+        // No site linked to this project yet, so there
+        // can be no DPRs for it. Return empty instead of
+        // erroring, since this is a valid state.
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          reports: [],
+        });
+      }
+
+      query.site = projectDoc.site;
+    }
+
+    // ---------------------------------------------
+    // Filter by Date Range
+    // ---------------------------------------------
+
+    if (startDate || endDate) {
+      query.reportDate = {};
+
+      if (startDate) {
+        query.reportDate.$gte = new Date(startDate);
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.reportDate.$lte = end;
+      }
+    }
+
+    // ---------------------------------------------
+    // "Today" shortcut takes priority over an
+    // explicit date range if both are somehow sent
+    // ---------------------------------------------
 
     if (today === "true") {
       const todayStart = new Date();
@@ -129,15 +199,14 @@ const getAllReports = async (req, res) => {
       };
     }
 
-    if (
-      req.user.role === "siteengineer"
-    ) {
+    if (req.user.role === "siteengineer") {
       query.siteEngineer = req.user._id;
     }
 
     const reports = await DPR.find(query)
       .populate("site", "siteName location progress")
-      .populate("siteEngineer", "name email");
+      .populate("siteEngineer", "name email")
+      .sort({ reportDate: -1 });
 
     res.status(200).json({
       success: true,

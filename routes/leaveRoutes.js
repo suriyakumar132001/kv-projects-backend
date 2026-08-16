@@ -15,60 +15,42 @@ const {
   rejectLeave,
 } = require("../controllers/leaveController");
 
+// Roles that can view and apply for their own leave
+const ALL_EMPLOYEE_ROLES = [
+  "owner",
+  "admin",
+  "hr",
+  "accountant",
+  "siteengineer",
+];
+
+// Roles that can approve / reject / edit other people's leave
+const MANAGEMENT_ROLES = ["owner", "hr", "admin"];
+
 // Apply Leave
-router.post(
-  "/",
-  protect,
-  authorize("owner", "hr", "siteengineer"),
-  applyLeave
-);
+router.post("/", protect, authorize(...ALL_EMPLOYEE_ROLES), applyLeave);
 
 // Get All Leaves
-router.get(
-  "/",
-  protect,
-  authorize("owner", "hr", "admin"),
-  getLeaves
-);
+router.get("/", protect, authorize(...ALL_EMPLOYEE_ROLES), getLeaves);
 
 // Get Single Leave
-router.get(
-  "/:id",
-  protect,
-  authorize("owner", "hr", "admin"),
-  getLeave
-);
+router.get("/:id", protect, authorize(...ALL_EMPLOYEE_ROLES), getLeave);
 
 // Approve Leave
 router.put(
   "/approve/:id",
   protect,
-  authorize("owner", "hr"),
-  approveLeave
+  authorize(...MANAGEMENT_ROLES),
+  approveLeave,
 );
 
 // Reject Leave
-router.put(
-  "/reject/:id",
-  protect,
-  authorize("owner", "hr"),
-  rejectLeave
-);
-
+router.put("/reject/:id", protect, authorize(...MANAGEMENT_ROLES), rejectLeave);
 
 // Update Leave
-router.put(
-  "/:id",
-  protect,
-  authorize("owner", "hr"),
-  updateLeave
-);
+router.put("/:id", protect, authorize(...MANAGEMENT_ROLES), updateLeave);
 
 // Delete Leave
-router.delete(
-  "/:id",
-  protect,
-  authorize("owner"),
-  deleteLeave
-);
+router.delete("/:id", protect, authorize("owner"), deleteLeave);
+
 module.exports = router;

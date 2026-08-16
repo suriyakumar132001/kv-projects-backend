@@ -1,6 +1,11 @@
 // =========================================
 // KV Projects ERP
 // Inventory Model
+//
+// One record per (site, materialName). Quantity is
+// increased automatically whenever a GRN is recorded
+// against that site/material, and will be decreased
+// once Material Issues are wired up.
 // =========================================
 
 const mongoose = require("mongoose");
@@ -16,6 +21,7 @@ const inventorySchema = new mongoose.Schema(
     materialName: {
       type: String,
       required: true,
+      trim: true,
     },
 
     unit: {
@@ -23,14 +29,9 @@ const inventorySchema = new mongoose.Schema(
       default: "Nos",
     },
 
-    availableStock: {
+    quantity: {
       type: Number,
       default: 0,
-    },
-
-    minimumStock: {
-      type: Number,
-      default: 50,
     },
 
     lastUpdated: {
@@ -40,7 +41,10 @@ const inventorySchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
+
+// One stock row per site + material combination.
+inventorySchema.index({ site: 1, materialName: 1 }, { unique: true });
 
 module.exports = mongoose.model("Inventory", inventorySchema);

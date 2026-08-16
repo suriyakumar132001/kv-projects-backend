@@ -7,13 +7,21 @@ const authorize = require("../middleware/roleMiddleware");
 
 const {
   getInventory,
+  getLowStock,
 } = require("../controllers/inventoryController");
+
+router.get(
+  "/low-stock",
+  protect,
+  authorize("owner", "admin", "hr", "siteengineer"),
+  getLowStock,
+);
 
 router.get(
   "/",
   protect,
   authorize("owner", "admin", "hr", "siteengineer"),
-  getInventory
+  getInventory,
 );
 
 module.exports = router;

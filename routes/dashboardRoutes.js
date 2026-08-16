@@ -11,6 +11,7 @@ const {
   adminDashboard,
   hrDashboard,
   siteEngineerDashboard,
+  accountantDashboard,
 } = require("../controllers/dashboardController");
 
 // Owner Only
@@ -59,6 +60,18 @@ router.get(
   authorize("siteengineer"),
 
   siteEngineerDashboard,
+);
+
+// Accountant Only
+
+router.get(
+  "/accountant",
+
+  protect,
+
+  authorize("accountant"),
+
+  accountantDashboard,
 );
 
 module.exports = router;

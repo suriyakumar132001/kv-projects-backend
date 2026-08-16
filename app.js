@@ -20,6 +20,7 @@ const userRoutes = require("./routes/userRoutes");
 const siteRoutes = require("./routes/siteRoutes");
 const dprRoutes = require("./routes/dprRoutes");
 const materialRoutes = require("./routes/materialRoutes");
+const materialRequestRoutes = require("./routes/materialRequestRoutes");
 const labourRoutes = require("./routes/labourRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
@@ -42,6 +43,7 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const pdfRoutes = require("./routes/pdfRoutes");
 const emailRoutes = require("./routes/emailRoutes");
 const projectRoutes = require("./routes/projectRoutes");
+const profitabilityRoutes = require("./routes/profitabilityRoutes");
 
 // ===============================================
 // Create Express App
@@ -113,6 +115,8 @@ app.use("/api/dpr", dprRoutes);
 
 app.use("/api/materials", materialRoutes);
 
+app.use("/api/material-requests", materialRequestRoutes);
+
 app.use("/api/labours", labourRoutes);
 
 app.use("/api/expenses", expenseRoutes);
@@ -130,6 +134,8 @@ app.use("/api/material-issues", materialIssueRoutes);
 app.use("/api/employees", employeeRoutes);
 
 app.use("/api/projects", projectRoutes);
+
+app.use("/api/profitability", profitabilityRoutes);
 
 app.use("/api/payroll", payrollRoutes);
 

@@ -1,13 +1,35 @@
 const Leave = require("../models/Leave");
 const Employee = require("../models/Employee");
 
+const MANAGEMENT_ROLES = ["owner", "admin", "hr"];
+
 // =====================================
 // Apply Leave
 // =====================================
 
 const applyLeave = async (req, res) => {
   try {
-    const employee = await Employee.findById(req.body.employee);
+    let employeeId = req.body.employee;
+
+    // Non-management roles can only apply for themselves, regardless
+    // of what "employee" was sent in the request body.
+    if (!MANAGEMENT_ROLES.includes(req.user.role)) {
+      const ownEmployee = await Employee.findOne({
+        $or: [{ user: req.user._id }, { email: req.user.email?.toLowerCase() }],
+      });
+
+      if (!ownEmployee) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "No employee record is linked to your account. Contact HR/Admin.",
+        });
+      }
+
+      employeeId = ownEmployee._id;
+    }
+
+    const employee = await Employee.findById(employeeId);
 
     if (!employee) {
       return res.status(404).json({
@@ -16,7 +38,10 @@ const applyLeave = async (req, res) => {
       });
     }
 
-    const leave = await Leave.create(req.body);
+    const leave = await Leave.create({
+      ...req.body,
+      employee: employeeId,
+    });
 
     res.status(201).json({
       success: true,
@@ -38,13 +63,7 @@ const applyLeave = async (req, res) => {
 
 const getLeaves = async (req, res) => {
   try {
-    const {
-      search,
-      status,
-      leaveType,
-      page = 1,
-      limit = 10,
-    } = req.query;
+    const { search, status, leaveType, page = 1, limit = 10 } = req.query;
 
     const query = {};
 
@@ -56,6 +75,26 @@ const getLeaves = async (req, res) => {
       query.leaveType = leaveType;
     }
 
+    // Non-management roles only ever see their own leave records.
+    if (!MANAGEMENT_ROLES.includes(req.user.role)) {
+      const ownEmployee = await Employee.findOne({
+        $or: [{ user: req.user._id }, { email: req.user.email?.toLowerCase() }],
+      });
+
+      if (!ownEmployee) {
+        return res.status(200).json({
+          success: true,
+          total: 0,
+          page: Number(page),
+          pages: 0,
+          count: 0,
+          leaves: [],
+        });
+      }
+
+      query.employee = ownEmployee._id;
+    }
+
     let leaves = await Leave.find(query)
       .populate("employee", "employeeId name department")
       .populate("approvedBy", "name")
@@ -63,9 +102,7 @@ const getLeaves = async (req, res) => {
 
     if (search) {
       leaves = leaves.filter((leave) =>
-        leave.employee?.name
-          ?.toLowerCase()
-          .includes(search.toLowerCase())
+        leave.employee?.name?.toLowerCase().includes(search.toLowerCase()),
       );
     }
 
@@ -110,6 +147,23 @@ const getLeave = async (req, res) => {
       });
     }
 
+    // Non-management roles can only view their own leave records.
+    if (!MANAGEMENT_ROLES.includes(req.user.role)) {
+      const ownEmployee = await Employee.findOne({
+        $or: [{ user: req.user._id }, { email: req.user.email?.toLowerCase() }],
+      });
+
+      if (
+        !ownEmployee ||
+        String(leave.employee?._id) !== String(ownEmployee._id)
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to view this leave record",
+        });
+      }
+    }
+
     res.status(200).json({
       success: true,
       leave,
@@ -143,7 +197,7 @@ const updateLeave = async (req, res) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     );
 
     res.status(200).json({

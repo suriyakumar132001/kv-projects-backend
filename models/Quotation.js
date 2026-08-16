@@ -14,6 +14,21 @@ const quotationSchema = new mongoose.Schema(
       required: true,
     },
 
+    // ---------------------------------------------
+    // Project Reference
+    // ---------------------------------------------
+    // Optional link to the Project collection. When set,
+    // an approved quotation can be traced through to the
+    // project it was raised for.
+    // ---------------------------------------------
+
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      default: null,
+      index: true,
+    },
+
     projectName: {
       type: String,
       required: true,
@@ -54,12 +69,7 @@ const quotationSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: [
-        "Draft",
-        "Sent",
-        "Approved",
-        "Rejected",
-      ],
+      enum: ["Draft", "Sent", "Approved", "Rejected"],
       default: "Draft",
     },
 
@@ -73,7 +83,7 @@ const quotationSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 module.exports = mongoose.model("Quotation", quotationSchema);

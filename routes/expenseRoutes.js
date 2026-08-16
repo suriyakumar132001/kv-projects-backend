@@ -13,6 +13,7 @@ const router = express.Router();
 
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
+const checkPermission = require("../middleware/checkPermission");
 
 // ===============================================
 // Controllers
@@ -36,7 +37,7 @@ const {
 router.get(
   "/stats",
   protect,
-  authorize("owner", "admin", "hr", "siteengineer"),
+  authorize("owner", "admin", "hr", "siteengineer", "accountant"),
   getExpenseStats,
 );
 
@@ -48,7 +49,7 @@ router.get(
 router.get(
   "/project/:projectId",
   protect,
-  authorize("owner", "admin", "hr", "siteengineer"),
+  authorize("owner", "admin", "hr", "siteengineer", "accountant"),
   getProjectExpenses,
 );
 
@@ -60,7 +61,7 @@ router.get(
 router.get(
   "/",
   protect,
-  authorize("owner", "admin", "hr", "siteengineer"),
+  authorize("owner", "admin", "hr", "siteengineer", "accountant"),
   getExpenses,
 );
 
@@ -72,7 +73,7 @@ router.get(
 router.get(
   "/:id",
   protect,
-  authorize("owner", "admin", "hr", "siteengineer"),
+  authorize("owner", "admin", "hr", "siteengineer", "accountant"),
   getExpense,
 );
 
@@ -84,7 +85,8 @@ router.get(
 router.post(
   "/",
   protect,
-  authorize("owner", "admin", "siteengineer"),
+  authorize("owner", "admin", "siteengineer", "accountant"),
+  checkPermission("expenses", "create"),
   createExpense,
 );
 
@@ -96,7 +98,8 @@ router.post(
 router.put(
   "/:id",
   protect,
-  authorize("owner", "admin", "siteengineer"),
+  authorize("owner", "admin", "siteengineer", "accountant"),
+  checkPermission("expenses", "edit"),
   updateExpense,
 );
 
@@ -105,7 +108,13 @@ router.put(
 // DELETE /api/expenses/:id
 // =================================================
 
-router.delete("/:id", protect, authorize("owner", "admin"), deleteExpense);
+router.delete(
+  "/:id",
+  protect,
+  authorize("owner", "admin", "accountant"),
+  checkPermission("expenses", "delete"),
+  deleteExpense,
+);
 
 // =================================================
 // EXPORT

@@ -20,8 +20,8 @@ const {
 router.post(
   "/",
   protect,
-  authorize("owner", "admin"),
-  createPayment
+  authorize("owner", "admin", "accountant"),
+  createPayment,
 );
 
 // =====================================
@@ -31,8 +31,8 @@ router.post(
 router.get(
   "/",
   protect,
-  authorize("owner", "admin", "hr"),
-  getPayments
+  authorize("owner", "admin", "hr", "accountant"),
+  getPayments,
 );
 
 // =====================================
@@ -42,8 +42,8 @@ router.get(
 router.get(
   "/:id",
   protect,
-  authorize("owner", "admin", "hr"),
-  getPayment
+  authorize("owner", "admin", "hr", "accountant"),
+  getPayment,
 );
 
 // =====================================
@@ -53,19 +53,15 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorize("owner", "admin"),
-  updatePayment
+  authorize("owner", "admin", "accountant"),
+  updatePayment,
 );
 
 // =====================================
-// Delete Payment
+// Delete Payment — stays Owner-only,
+// intentionally not opened up to Accountant.
 // =====================================
 
-router.delete(
-  "/:id",
-  protect,
-  authorize("owner"),
-  deletePayment
-);
+router.delete("/:id", protect, authorize("owner"), deletePayment);
 
 module.exports = router;

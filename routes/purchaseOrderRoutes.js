@@ -8,31 +8,31 @@ const authorize = require("../middleware/roleMiddleware");
 const {
   createPurchaseOrder,
   getPurchaseOrders,
-  updatePOStatus,
+  getSinglePurchaseOrder,
+  cancelPurchaseOrder,
 } = require("../controllers/purchaseOrderController");
 
-// Create Purchase Order
-router.post(
-  "/",
-  protect,
-  authorize("owner", "admin"),
-  createPurchaseOrder
-);
+router.post("/", protect, authorize("owner", "admin"), createPurchaseOrder);
 
-// Get All Purchase Orders
 router.get(
   "/",
   protect,
-  authorize("owner", "admin", "hr"),
-  getPurchaseOrders
+  authorize("owner", "admin", "accountant", "siteengineer"),
+  getPurchaseOrders,
 );
 
-// Update Status
+router.get(
+  "/:id",
+  protect,
+  authorize("owner", "admin", "accountant", "siteengineer"),
+  getSinglePurchaseOrder,
+);
+
 router.put(
-  "/:id/status",
+  "/:id/cancel",
   protect,
   authorize("owner", "admin"),
-  updatePOStatus
+  cancelPurchaseOrder,
 );
 
 module.exports = router;
