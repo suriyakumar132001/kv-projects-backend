@@ -1,4 +1,7 @@
+const mongoose = require("mongoose");
 const Invoice = require("../models/Invoice");
+
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // =====================================
 // Create Invoice
@@ -6,25 +9,35 @@ const Invoice = require("../models/Invoice");
 
 const createInvoice = async (req, res) => {
   try {
+    // ---------------------------------------------
+    // Validate Project Reference (optional field)
+    // ---------------------------------------------
+
+    if (req.body.project && !isValidObjectId(req.body.project)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid project ID",
+      });
+    }
 
     const invoice = await Invoice.create({
       ...req.body,
+      project: req.body.project || null,
       createdBy: req.user._id,
     });
+
+    await invoice.populate("project", "projectName status budget");
 
     res.status(201).json({
       success: true,
       message: "Invoice Created Successfully",
       invoice,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
@@ -33,12 +46,26 @@ const createInvoice = async (req, res) => {
 // =====================================
 
 const getInvoices = async (req, res) => {
-
   try {
+    const { project } = req.query;
 
-    const invoices = await Invoice.find()
+    const query = {};
+
+    if (project) {
+      if (!isValidObjectId(project)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid project ID",
+        });
+      }
+
+      query.project = project;
+    }
+
+    const invoices = await Invoice.find(query)
       .populate("client", "clientName companyName phone")
       .populate("quotation", "quotationNumber")
+      .populate("project", "projectName status")
       .populate("createdBy", "name email");
 
     res.status(200).json({
@@ -46,16 +73,12 @@ const getInvoices = async (req, res) => {
       count: invoices.length,
       invoices,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
-
 };
 
 // =====================================
@@ -63,12 +86,11 @@ const getInvoices = async (req, res) => {
 // =====================================
 
 const getInvoice = async (req, res) => {
-
   try {
-
     const invoice = await Invoice.findById(req.params.id)
       .populate("client")
       .populate("quotation")
+      .populate("project", "projectName status budget")
       .populate("createdBy", "name email");
 
     if (!invoice) {
@@ -82,16 +104,12 @@ const getInvoice = async (req, res) => {
       success: true,
       invoice,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
-
 };
 
 // =====================================
@@ -99,9 +117,7 @@ const getInvoice = async (req, res) => {
 // =====================================
 
 const updateInvoice = async (req, res) => {
-
   try {
-
     const invoice = await Invoice.findById(req.params.id);
 
     if (!invoice) {
@@ -117,7 +133,7 @@ const updateInvoice = async (req, res) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     );
 
     res.status(200).json({
@@ -125,16 +141,12 @@ const updateInvoice = async (req, res) => {
       message: "Invoice Updated Successfully",
       invoice: updatedInvoice,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
-
 };
 
 // =====================================
@@ -142,9 +154,7 @@ const updateInvoice = async (req, res) => {
 // =====================================
 
 const updatePaymentStatus = async (req, res) => {
-
   try {
-
     const invoice = await Invoice.findById(req.params.id);
 
     if (!invoice) {
@@ -163,16 +173,12 @@ const updatePaymentStatus = async (req, res) => {
       message: "Payment Status Updated Successfully",
       invoice,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
-
 };
 
 // =====================================
@@ -180,9 +186,7 @@ const updatePaymentStatus = async (req, res) => {
 // =====================================
 
 const deleteInvoice = async (req, res) => {
-
   try {
-
     const invoice = await Invoice.findById(req.params.id);
 
     if (!invoice) {
@@ -198,16 +202,12 @@ const deleteInvoice = async (req, res) => {
       success: true,
       message: "Invoice Deleted Successfully",
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
-
 };
 
 module.exports = {

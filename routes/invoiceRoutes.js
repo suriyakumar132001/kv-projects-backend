@@ -4,6 +4,7 @@ const router = express.Router();
 
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
+const checkPermission = require("../middleware/checkPermission");
 
 const {
   createInvoice,
@@ -21,8 +22,9 @@ const {
 router.post(
   "/",
   protect,
-  authorize("owner", "admin"),
-  createInvoice
+  authorize("owner", "admin", "accountant"),
+  checkPermission("invoices", "create"),
+  createInvoice,
 );
 
 // =====================================
@@ -32,8 +34,8 @@ router.post(
 router.get(
   "/",
   protect,
-  authorize("owner", "admin", "hr"),
-  getInvoices
+  authorize("owner", "admin", "hr", "accountant"),
+  getInvoices,
 );
 
 // =====================================
@@ -43,8 +45,8 @@ router.get(
 router.get(
   "/:id",
   protect,
-  authorize("owner", "admin", "hr"),
-  getInvoice
+  authorize("owner", "admin", "hr", "accountant"),
+  getInvoice,
 );
 
 // =====================================
@@ -54,8 +56,9 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorize("owner", "admin"),
-  updateInvoice
+  authorize("owner", "admin", "accountant"),
+  checkPermission("invoices", "edit"),
+  updateInvoice,
 );
 
 // =====================================
@@ -65,19 +68,16 @@ router.put(
 router.put(
   "/payment/:id",
   protect,
-  authorize("owner", "admin"),
-  updatePaymentStatus
+  authorize("owner", "admin", "accountant"),
+  checkPermission("invoices", "edit"),
+  updatePaymentStatus,
 );
 
 // =====================================
-// Delete Invoice
+// Delete Invoice — stays Owner-only,
+// intentionally not opened up to Accountant.
 // =====================================
 
-router.delete(
-  "/:id",
-  protect,
-  authorize("owner"),
-  deleteInvoice
-);
+router.delete("/:id", protect, authorize("owner"), deleteInvoice);
 
 module.exports = router;

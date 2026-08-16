@@ -11,6 +11,16 @@ const purchaseOrderSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      trim: true,
+    },
+
+    // Set when this PO originated from an approved Material
+    // Request (via the convert-to-PO flow). Null for POs
+    // raised directly/manually.
+    materialRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MaterialRequest",
+      default: null,
     },
 
     site: {
@@ -28,6 +38,7 @@ const purchaseOrderSchema = new mongoose.Schema(
     materialName: {
       type: String,
       required: true,
+      trim: true,
     },
 
     quantity: {
@@ -50,33 +61,33 @@ const purchaseOrderSchema = new mongoose.Schema(
       required: true,
     },
 
-    expectedDelivery: {
-      type: Date,
+    // Running total of quantity received against this PO,
+    // kept in sync as GRNs are recorded.
+    receivedQuantity: {
+      type: Number,
+      default: 0,
     },
 
     status: {
       type: String,
-      enum: [
-        "Pending",
-        "Approved",
-        "Ordered",
-        "Delivered",
-        "Cancelled",
-      ],
-      default: "Pending",
+      enum: ["Ordered", "Partially Received", "Received", "Cancelled"],
+      default: "Ordered",
+    },
+
+    expectedDelivery: {
+      type: Date,
+      default: null,
     },
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: true,
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-module.exports = mongoose.model(
-  "PurchaseOrder",
-  purchaseOrderSchema
-);
+module.exports = mongoose.model("PurchaseOrder", purchaseOrderSchema);

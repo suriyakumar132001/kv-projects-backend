@@ -710,12 +710,46 @@ const getProjectExpenses = async (req, res) => {
 
     const totalAmount = totalResult[0]?.totalAmount || 0;
 
+    // ---------------------------------------------
+    // Category Totals
+    // (Frontend expects an object keyed by category,
+    // e.g. { Material: 5000, Labour: 3000 })
+    // ---------------------------------------------
+
+    const categoryResult = await Expense.aggregate([
+      {
+        $match: query,
+      },
+      {
+        $group: {
+          _id: "$category",
+          amount: {
+            $sum: "$amount",
+          },
+        },
+      },
+    ]);
+
+    const categoryTotals = categoryResult.reduce((acc, item) => {
+      acc[item._id || "Miscellaneous"] = item.amount;
+      return acc;
+    }, {});
+
     return res.status(200).json({
       success: true,
 
       count: expenses.length,
 
       totalAmount,
+
+      // Kept for backward compatibility with any code
+      // still reading the flat totalAmount field.
+      summary: {
+        totalExpense: totalAmount,
+        totalCount: expenses.length,
+      },
+
+      categoryTotals,
 
       expenses,
     });

@@ -1,6 +1,11 @@
 // =========================================
 // KV Projects ERP
-// Goods Receipt Note Model
+// Goods Receipt Note (GRN) Model
+//
+// Records material actually received against a Purchase
+// Order. A PO can have multiple GRNs (partial deliveries).
+// Creating a GRN updates the parent PO's receivedQuantity
+// and the site's Inventory stock.
 // =========================================
 
 const mongoose = require("mongoose");
@@ -11,6 +16,7 @@ const grnSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      trim: true,
     },
 
     purchaseOrder: {
@@ -19,29 +25,37 @@ const grnSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Denormalised from the PO at receipt time so GRN
+    // records stay meaningful even if the PO changes later.
     site: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Site",
       required: true,
     },
 
-    vendor: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
+    materialName: {
+      type: String,
       required: true,
+      trim: true,
     },
 
-    receivedQuantity: {
+    unit: {
+      type: String,
+      default: "Nos",
+    },
+
+    quantityReceived: {
       type: Number,
       required: true,
     },
 
-    receivedDate: {
-      type: Date,
-      default: Date.now,
+    condition: {
+      type: String,
+      enum: ["Good", "Damaged", "Partial Damage"],
+      default: "Good",
     },
 
-    remarks: {
+    notes: {
       type: String,
       default: "",
     },
@@ -49,11 +63,17 @@ const grnSchema = new mongoose.Schema(
     receivedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-    }
+      required: true,
+    },
+
+    receivedDate: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 module.exports = mongoose.model("GRN", grnSchema);

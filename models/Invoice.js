@@ -19,6 +19,22 @@ const invoiceSchema = new mongoose.Schema(
       ref: "Quotation",
     },
 
+    // ---------------------------------------------
+    // Project Reference
+    // ---------------------------------------------
+    // Proper link to the Project collection, used for
+    // profitability calculations (revenue vs actual cost).
+    // Kept optional so existing invoices created before
+    // this field existed remain valid.
+    // ---------------------------------------------
+
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      default: null,
+      index: true,
+    },
+
     projectName: {
       type: String,
       required: true,
@@ -69,11 +85,11 @@ const invoiceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    }
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 module.exports = mongoose.model("Invoice", invoiceSchema);

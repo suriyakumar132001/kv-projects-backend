@@ -103,9 +103,26 @@ const siteEngineerDashboard = async (req, res) => {
   }
 };
 
+const accountantDashboard = async (req, res) => {
+  try {
+    const stats = await getStats();
+
+    res.json({
+      success: true,
+      message: "Welcome Accountant",
+      user: req.user,
+      stats,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Failed to load dashboard" });
+  }
+};
+
 module.exports = {
   ownerDashboard,
   adminDashboard,
   hrDashboard,
   siteEngineerDashboard,
+  accountantDashboard,
 };

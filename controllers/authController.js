@@ -15,6 +15,7 @@ const ROLE_LABELS = {
   admin: "Admin",
   hr: "HR",
   siteengineer: "Site Engineer",
+  accountant: "Accountant",
 };
 
 // Sends the new user their login credentials by email.
@@ -76,7 +77,7 @@ const sendWelcomeEmail = async ({ name, email, password, role, createdBy }) => {
 // Owner/Admin created for them.
 // =============================================
 
-const CREATABLE_ROLES = ["admin", "hr", "siteengineer"];
+const CREATABLE_ROLES = ["admin", "hr", "siteengineer", "accountant"];
 
 const register = async (req, res) => {
   try {
@@ -128,7 +129,8 @@ const register = async (req, res) => {
       if (caller.role === "admin" && role === "admin") {
         return res.status(403).json({
           success: false,
-          message: "Admins can only create HR or Site Engineer accounts.",
+          message:
+            "Admins can only create HR, Site Engineer, or Accountant accounts.",
         });
       }
     }
