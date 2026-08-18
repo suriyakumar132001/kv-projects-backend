@@ -6,10 +6,27 @@ const Employee = require("../models/Employee");
 
 const createEmployee = async (req, res) => {
   try {
-    const employee = await Employee.create({
-      ...req.body,
+    const { faceDescriptor, ...rest } = req.body;
+
+    const employeeData = {
+      ...rest,
       createdBy: req.user._id,
-    });
+    };
+
+    // Optional: face captured directly on the Add Employee form (see
+    // FaceCapture in EmployeeForm.jsx). Same validation as enrollFace() —
+    // a malformed/missing descriptor is simply ignored rather than
+    // blocking employee creation.
+    if (
+      Array.isArray(faceDescriptor) &&
+      faceDescriptor.length === 128 &&
+      faceDescriptor.every((n) => typeof n === "number" && Number.isFinite(n))
+    ) {
+      employeeData.faceDescriptor = faceDescriptor;
+      employeeData.faceEnrolledAt = new Date();
+    }
+
+    const employee = await Employee.create(employeeData);
 
     res.status(201).json({
       success: true,
