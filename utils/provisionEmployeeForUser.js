@@ -17,13 +17,37 @@ const ROLE_LABELS = {
 //   - userController.provisionEmployee (linking OLDER accounts that were
 //     created before this feature existed)
 //
-// Best-effort — returns null (and logs) instead of throwing, so callers
-// never get blocked by a duplicate-email or similar Employee-side error.
+// Returns { employee, reason }. employee is null on failure, with a
+// human-readable `reason` — so the "Create Profile" button can surface a
+// useful message instead of a generic 500.
 const provisionEmployeeForUser = async ({ user, phone, createdById }) => {
   try {
     // Already linked? Don't create a duplicate.
-    const existing = await Employee.findOne({ user: user._id });
-    if (existing) return existing;
+    const existingByUser = await Employee.findOne({ user: user._id });
+    if (existingByUser) return { employee: existingByUser, reason: null };
+
+    // Employee.email is unique. If an Employee with this email already
+    // exists (e.g. added manually via the Employees page before this
+    // account existed), a plain create() would throw a duplicate-key
+    // error. Link the existing record instead of trying to duplicate it.
+    const existingByEmail = await Employee.findOne({ email: user.email });
+
+    if (existingByEmail) {
+      if (
+        existingByEmail.user &&
+        String(existingByEmail.user) !== String(user._id)
+      ) {
+        return {
+          employee: null,
+          reason: `Email ${user.email} is already used by Employee ${existingByEmail.employeeId}, which is linked to a different account.`,
+        };
+      }
+
+      existingByEmail.user = user._id;
+      await existingByEmail.save();
+
+      return { employee: existingByEmail, reason: null };
+    }
 
     const employeeId = await generateEmployeeId();
 
@@ -40,10 +64,10 @@ const provisionEmployeeForUser = async ({ user, phone, createdById }) => {
       createdBy: createdById,
     });
 
-    return employee;
+    return { employee, reason: null };
   } catch (error) {
     console.error("Auto Employee provisioning failed:", error.message);
-    return null;
+    return { employee: null, reason: error.message };
   }
 };
 
