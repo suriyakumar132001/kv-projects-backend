@@ -12,6 +12,8 @@ const {
   getMyEmployee,
   updateEmployee,
   deleteEmployee,
+  enrollFace,
+  removeFace,
 } = require("../controllers/employeeController");
 
 // Create Employee
@@ -39,6 +41,12 @@ router.get(
 
 // Update Employee
 router.put("/:id", protect, authorize("owner", "hr"), updateEmployee);
+
+// Enroll / Re-enroll Face
+router.put("/:id/face", protect, authorize("owner", "hr"), enrollFace);
+
+// Remove Enrolled Face
+router.delete("/:id/face", protect, authorize("owner", "hr"), removeFace);
 
 // Delete Employee
 router.delete("/:id", protect, authorize("owner"), deleteEmployee);
