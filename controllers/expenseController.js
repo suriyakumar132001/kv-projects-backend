@@ -5,6 +5,10 @@
 
 const mongoose = require("mongoose");
 const Expense = require("../models/Expense");
+const User = require("../models/User"); // NEW
+const {
+  createNotificationForMany,
+} = require("../services/notificationService"); // NEW
 
 // ===============================================
 // Helper: Check Valid ObjectId
@@ -93,6 +97,32 @@ const createExpense = async (req, res) => {
         select: "name email role",
       },
     ]);
+
+    // ===============================================
+    // NEW: Notify Owner + Admin (informational — this model
+    // has no approve/reject step, so this is a heads-up only,
+    // not an approval-queue notification)
+    // ===============================================
+    try {
+      const recipients = await User.find({
+        role: { $in: ["owner", "admin"] },
+      }).select("_id");
+
+      const recipientIds = recipients.map((u) => u._id);
+
+      if (recipientIds.length > 0) {
+        await createNotificationForMany(recipientIds, {
+          type: "general",
+          title: "New Expense Submitted",
+          message: `${expense.siteEngineer?.name || "Someone"} logged a ${expense.category} expense of ₹${expense.amount} at ${expense.site?.siteName || expense.site?.name || "a site"}`,
+          link: `/expenses/view/${expense._id}`,
+          relatedModel: "Expense",
+          relatedId: expense._id,
+        });
+      }
+    } catch (notifyErr) {
+      console.error("Notification error (create expense):", notifyErr.message);
+    }
 
     // ---------------------------------------------
     // Response
