@@ -5,6 +5,10 @@
 
 const PurchaseOrder = require("../models/PurchaseOrder");
 const GRN = require("../models/GRN");
+const User = require("../models/User"); // NEW
+const {
+  createNotificationForMany,
+} = require("../services/notificationService"); // NEW
 
 // =========================================
 // Create Purchase Order (manual / standalone)
@@ -52,6 +56,33 @@ const createPurchaseOrder = async (req, res) => {
       expectedDelivery,
       createdBy: req.user._id,
     });
+
+    // ===============================================
+    // NEW: Notify Owner (informational — this model has no
+    // approval step; whoever creates a PO is already assumed
+    // authorized to do so, so this is a spend heads-up only)
+    // ===============================================
+    try {
+      const recipients = await User.find({ role: "owner" }).select("_id");
+
+      const recipientIds = recipients.map((u) => u._id);
+
+      if (recipientIds.length > 0) {
+        await createNotificationForMany(recipientIds, {
+          type: "general",
+          title: "New Purchase Order Created",
+          message: `PO #${purchaseOrder.poNumber} for ${purchaseOrder.materialName} (₹${purchaseOrder.totalAmount}) was created`,
+          link: `/purchase-orders/view/${purchaseOrder._id}`,
+          relatedModel: "PurchaseOrder",
+          relatedId: purchaseOrder._id,
+        });
+      }
+    } catch (notifyErr) {
+      console.error(
+        "Notification error (create purchase order):",
+        notifyErr.message,
+      );
+    }
 
     res.status(201).json({
       success: true,

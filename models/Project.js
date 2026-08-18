@@ -29,6 +29,24 @@ const projectSchema = new mongoose.Schema(
       maxlength: 150,
     },
 
+    // =============================================
+    // Client Reference
+    // =============================================
+    //
+    // Proper link to the Client collection. Required
+    // for the client portal, which scopes every query
+    // by this field for data isolation. clientName is
+    // kept for backward compatibility / display, but
+    // going forward this should always be set too.
+    // =============================================
+
+    client: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Client",
+      default: null,
+      index: true,
+    },
+
     location: {
       type: String,
       required: true,

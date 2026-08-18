@@ -20,7 +20,6 @@ const userRoutes = require("./routes/userRoutes");
 const siteRoutes = require("./routes/siteRoutes");
 const dprRoutes = require("./routes/dprRoutes");
 const materialRoutes = require("./routes/materialRoutes");
-const materialRequestRoutes = require("./routes/materialRequestRoutes");
 const labourRoutes = require("./routes/labourRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
@@ -43,7 +42,21 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const pdfRoutes = require("./routes/pdfRoutes");
 const emailRoutes = require("./routes/emailRoutes");
 const projectRoutes = require("./routes/projectRoutes");
-const profitabilityRoutes = require("./routes/profitabilityRoutes");
+
+// ===============================================
+// Client Portal Routes
+// ===============================================
+//
+// Three separate route files, deliberately not merged
+// into the staff routes above:
+//   - clientAuthRoutes:        client login / password reset (public)
+//   - clientPortalRoutes:      client-facing data (protectClient)
+//   - clientPortalAdminRoutes: staff-only activate/deactivate access
+// ===============================================
+
+const clientAuthRoutes = require("./routes/clientAuthRoutes");
+const clientPortalRoutes = require("./routes/clientPortalRoutes");
+const clientPortalAdminRoutes = require("./routes/clientPortalAdminRoutes");
 
 // ===============================================
 // Create Express App
@@ -115,8 +128,6 @@ app.use("/api/dpr", dprRoutes);
 
 app.use("/api/materials", materialRoutes);
 
-app.use("/api/material-requests", materialRequestRoutes);
-
 app.use("/api/labours", labourRoutes);
 
 app.use("/api/expenses", expenseRoutes);
@@ -135,8 +146,6 @@ app.use("/api/employees", employeeRoutes);
 
 app.use("/api/projects", projectRoutes);
 
-app.use("/api/profitability", profitabilityRoutes);
-
 app.use("/api/payroll", payrollRoutes);
 
 app.use("/api/leaves", leaveRoutes);
@@ -148,6 +157,11 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/assets", assetRoutes);
 
 app.use("/api/clients", clientRoutes);
+
+// Mounted alongside clientRoutes on the same prefix —
+// adds /:id/activate-portal and /:id/deactivate-portal
+// without touching clientRoutes.js itself.
+app.use("/api/clients", clientPortalAdminRoutes);
 
 app.use("/api/quotations", quotationRoutes);
 
@@ -162,6 +176,11 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/pdf", pdfRoutes);
 
 app.use("/api/email", emailRoutes);
+
+// Client portal — separate auth domain from everything above
+app.use("/api/client-auth", clientAuthRoutes);
+
+app.use("/api/client-portal", clientPortalRoutes);
 
 // ===============================================
 // Default Route

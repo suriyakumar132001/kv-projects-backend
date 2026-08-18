@@ -1,5 +1,9 @@
 const Leave = require("../models/Leave");
 const Employee = require("../models/Employee");
+const User = require("../models/User"); // NEW
+const {
+  createNotificationForMany,
+} = require("../services/notificationService"); // NEW
 
 const MANAGEMENT_ROLES = ["owner", "admin", "hr"];
 
@@ -42,6 +46,30 @@ const applyLeave = async (req, res) => {
       ...req.body,
       employee: employeeId,
     });
+
+    // ===============================================
+    // NEW: Notify Owner + Admin + HR that a leave needs approval
+    // ===============================================
+    try {
+      const approvers = await User.find({
+        role: { $in: MANAGEMENT_ROLES },
+      }).select("_id");
+
+      const approverIds = approvers.map((u) => u._id);
+
+      if (approverIds.length > 0) {
+        await createNotificationForMany(approverIds, {
+          type: "pending_approval",
+          title: "New Leave Request",
+          message: `${employee.name || "An employee"} applied for ${leave.leaveType} leave (${leave.totalDays} day(s))`,
+          link: `/leave/view/${leave._id}`,
+          relatedModel: "Leave",
+          relatedId: leave._id,
+        });
+      }
+    } catch (notifyErr) {
+      console.error("Notification error (apply leave):", notifyErr.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -263,6 +291,26 @@ const approveLeave = async (req, res) => {
 
     await leave.save();
 
+    // ===============================================
+    // NEW: Notify the employee who applied
+    // ===============================================
+    try {
+      const employee = await Employee.findById(leave.employee);
+
+      if (employee?.user) {
+        await createNotificationForMany([employee.user], {
+          type: "pending_approval",
+          title: "Leave Approved",
+          message: `Your ${leave.leaveType} leave request was approved`,
+          link: `/leave/view/${leave._id}`,
+          relatedModel: "Leave",
+          relatedId: leave._id,
+        });
+      }
+    } catch (notifyErr) {
+      console.error("Notification error (approve leave):", notifyErr.message);
+    }
+
     res.status(200).json({
       success: true,
       message: "Leave Approved Successfully",
@@ -296,6 +344,28 @@ const rejectLeave = async (req, res) => {
     leave.remarks = req.body.remarks || "";
 
     await leave.save();
+
+    // ===============================================
+    // NEW: Notify the employee who applied
+    // ===============================================
+    try {
+      const employee = await Employee.findById(leave.employee);
+
+      if (employee?.user) {
+        await createNotificationForMany([employee.user], {
+          type: "pending_approval",
+          title: "Leave Rejected",
+          message: `Your ${leave.leaveType} leave request was rejected${
+            leave.remarks ? `: ${leave.remarks}` : ""
+          }`,
+          link: `/leave/view/${leave._id}`,
+          relatedModel: "Leave",
+          relatedId: leave._id,
+        });
+      }
+    } catch (notifyErr) {
+      console.error("Notification error (reject leave):", notifyErr.message);
+    }
 
     res.status(200).json({
       success: true,

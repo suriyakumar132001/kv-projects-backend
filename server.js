@@ -15,6 +15,7 @@ require("dotenv").config();
 
 const app = require("./app");
 const connectDB = require("./config/db");
+const startNotificationCron = require("./utils/notificationCron"); // NEW
 
 // ===============================================
 // Configuration
@@ -42,6 +43,10 @@ const startServer = async () => {
       console.log(`📁 API:    http://localhost:${PORT}/api`);
       console.log("======================================");
       console.log("");
+
+      // Start scheduled notification checks (overdue invoices, etc.)
+      startNotificationCron();
+      console.log("🔔 Notification cron scheduled (daily 8 AM)");
     });
   } catch (error) {
     console.error("❌ Server startup failed:");

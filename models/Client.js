@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const clientSchema = new mongoose.Schema(
   {
@@ -65,10 +66,73 @@ const clientSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
+    // =============================================
+    // Client Portal Access
+    // =============================================
+    //
+    // Not every client has portal access — only clients
+    // an Owner/Admin has explicitly activated. password
+    // stays undefined until then, and login is blocked
+    // unless portalActive is true, even if a password
+    // somehow exists (e.g. after being deactivated).
+    // =============================================
+
+    password: {
+      type: String,
+      minlength: 6,
+      default: undefined,
+    },
+
+    portalActive: {
+      type: Boolean,
+      default: false,
+    },
+
+    lastPortalLogin: {
+      type: Date,
+      default: null,
+    },
+
+    // Forgot Password — same hashed-token + expiry pattern
+    // used on User.js, so a leaked database alone can't be
+    // used to reset a client's password.
+    resetPasswordToken: {
+      type: String,
+      default: undefined,
+    },
+
+    resetPasswordExpire: {
+      type: Date,
+      default: undefined,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// =============================================
+// Hash Password (only runs when a password exists
+// and was actually changed — most clients never set
+// one at all)
+// =============================================
+
+clientSchema.pre("save", async function () {
+  if (!this.isModified("password") || !this.password) return;
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+// =============================================
+// Compare Password
+// =============================================
+
+clientSchema.methods.comparePassword = async function (enteredPassword) {
+  if (!this.password) return false;
+
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 module.exports = mongoose.model("Client", clientSchema);

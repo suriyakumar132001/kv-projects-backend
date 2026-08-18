@@ -5,6 +5,10 @@
 
 const MaterialRequest = require("../models/MaterialRequest");
 const PurchaseOrder = require("../models/PurchaseOrder");
+const User = require("../models/User"); // NEW
+const {
+  createNotificationForMany,
+} = require("../services/notificationService"); // NEW
 
 // =========================================
 // Create Material Request
@@ -23,6 +27,34 @@ const createMaterialRequest = async (req, res) => {
       urgency,
       reason,
     });
+
+    // ===============================================
+    // NEW: Notify Owner + Admin that a request needs approval
+    // ===============================================
+    try {
+      const approvers = await User.find({
+        role: { $in: ["owner", "admin"] },
+      }).select("_id");
+
+      const approverIds = approvers.map((u) => u._id);
+
+      if (approverIds.length > 0) {
+        await createNotificationForMany(approverIds, {
+          type: "material_request",
+          title: "New Material Request",
+          message: `${req.user.name || "A site engineer"} requested ${quantity} ${unit} of ${materialName}`,
+          link: `/material-requests/${request._id}`,
+          relatedModel: "MaterialRequest",
+          relatedId: request._id,
+        });
+      }
+    } catch (notifyErr) {
+      // Never fail the request creation because notifications failed
+      console.error(
+        "Notification error (material request):",
+        notifyErr.message,
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -156,6 +188,24 @@ const updateRequestStatus = async (req, res) => {
     }
 
     await request.save();
+
+    // ===============================================
+    // NEW: Notify the original requester of the decision
+    // ===============================================
+    try {
+      await createNotificationForMany([request.requestedBy], {
+        type: "material_request",
+        title: `Material Request ${status}`,
+        message: `Your request for ${request.materialName} was ${status.toLowerCase()}${
+          status === "Rejected" && rejectionReason ? `: ${rejectionReason}` : ""
+        }`,
+        link: `/material-requests/${request._id}`,
+        relatedModel: "MaterialRequest",
+        relatedId: request._id,
+      });
+    } catch (notifyErr) {
+      console.error("Notification error (status update):", notifyErr.message);
+    }
 
     res.status(200).json({
       success: true,
