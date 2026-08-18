@@ -1,6 +1,8 @@
 const Attendance = require("../models/Attendance");
 const Employee = require("../models/Employee");
 const Site = require("../models/Site");
+const { getDistanceInMeters } = require("../utils/geoDistance");
+const { getEuclideanDistance } = require("../utils/faceDistance");
 
 // Looks up the Employee record linked to a logged-in user (used to lock
 // Site Engineers to their own attendance only).
@@ -8,13 +10,106 @@ const findOwnEmployee = async (userId) => {
   return Employee.findOne({ user: userId });
 };
 
+// =============================================
+// GPS Verification Helper
+// =============================================
+//
+// Given a site and the coordinates reported by the
+// browser, returns { distanceFromSite, locationVerified }.
+// Never throws — a missing/invalid coordinate just
+// results in locationVerified: null (not checked),
+// so this never blocks a check-in on its own.
+// =============================================
+
+const verifyLocation = (site, latitude, longitude) => {
+  if (
+    latitude === undefined ||
+    latitude === null ||
+    longitude === undefined ||
+    longitude === null ||
+    !site ||
+    site.latitude === null ||
+    site.longitude === null
+  ) {
+    return { distanceFromSite: null, locationVerified: null };
+  }
+
+  const distanceFromSite = getDistanceInMeters(
+    Number(latitude),
+    Number(longitude),
+    site.latitude,
+    site.longitude,
+  );
+
+  const radius = site.geofenceRadius || 200;
+
+  return {
+    distanceFromSite,
+    locationVerified: distanceFromSite <= radius,
+  };
+};
+
+// =============================================
+// Face Verification Helper
+// =============================================
+//
+// Given the employee and a face descriptor captured in the
+// browser at check-in time, returns { faceDistance, faceVerified }.
+// Never throws — a missing descriptor (not enrolled yet, or no
+// face captured this time) just results in faceVerified: null
+// (not checked), so this never blocks a check-in on its own —
+// same philosophy as verifyLocation() above.
+//
+// face-api.js's own guidance treats ~0.6 as a loose match and
+// ~0.4 as a confident one; 0.5 is used here as a reasonable
+// middle ground. Tune if you're seeing too many/few false flags.
+// =============================================
+
+const FACE_MATCH_THRESHOLD = 0.5;
+
+const verifyFace = (employee, submittedDescriptor) => {
+  if (
+    !Array.isArray(submittedDescriptor) ||
+    submittedDescriptor.length !== 128 ||
+    !employee ||
+    !Array.isArray(employee.faceDescriptor) ||
+    employee.faceDescriptor.length !== 128
+  ) {
+    return { faceDistance: null, faceVerified: null };
+  }
+
+  const faceDistance = getEuclideanDistance(
+    submittedDescriptor,
+    employee.faceDescriptor,
+  );
+
+  if (faceDistance === null) {
+    return { faceDistance: null, faceVerified: null };
+  }
+
+  return {
+    faceDistance: Number(faceDistance.toFixed(4)),
+    faceVerified: faceDistance <= FACE_MATCH_THRESHOLD,
+  };
+};
+
 // ======================================
 // Employee Check In
 // ======================================
 const checkIn = async (req, res) => {
   try {
-    let employeeId = req.body.employee;
-    let siteId = req.body.site;
+    const body = req.body || {};
+
+    let employeeId = body.employee;
+    let siteId = body.site;
+
+    // GPS coordinates from the browser's Geolocation API.
+    // Optional at the request level — see verifyLocation().
+    const { latitude, longitude } = body;
+
+    // Face descriptor from the browser (face-api.js). Optional at
+    // the request level — see verifyFace().
+    const { faceDescriptor } = body;
 
     // Owner cannot check in attendance at all — view-only role.
     if (req.user.role === "owner") {
@@ -66,8 +161,7 @@ const checkIn = async (req, res) => {
           if (!validSite) {
             return res.status(400).json({
               success: false,
-              message:
-                "Selected site is not assigned to your account.",
+              message: "Selected site is not assigned to your account.",
             });
           }
         } else {
@@ -85,8 +179,10 @@ const checkIn = async (req, res) => {
       });
     }
 
+    let site = null;
+
     if (siteId) {
-      const site = await Site.findById(siteId);
+      site = await Site.findById(siteId);
 
       if (!site) {
         return res.status(404).json({
@@ -118,16 +214,71 @@ const checkIn = async (req, res) => {
       });
     }
 
+    // ---------------------------------------------
+    // GPS + Face Verification
+    // ---------------------------------------------
+    //
+    // NOTE: Both flag, they do not block. A check-in outside the
+    // geofence or with a low face match is still recorded, just
+    // marked locationVerified/faceVerified: false so Admin/Owner
+    // can review it.
+    //
+    // To make either a hard block instead, uncomment the relevant
+    // check below:
+    //
+    // if (locationVerified === false) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: `Check-in rejected: you are ${distanceFromSite}m from the site (allowed: ${site.geofenceRadius}m).`,
+    //   });
+    // }
+    //
+    // if (faceVerified === false) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Check-in rejected: face did not match the enrolled profile.",
+    //   });
+    // }
+    // ---------------------------------------------
+
+    const { distanceFromSite, locationVerified } = verifyLocation(
+      site,
+      latitude,
+      longitude,
+    );
+
+    const { faceDistance, faceVerified } = verifyFace(employee, faceDescriptor);
+
     const attendance = await Attendance.create({
       employee: employeeId,
       site: siteId,
       checkIn: new Date(),
-      remarks: req.body.remarks,
+      remarks: body.remarks,
+      checkInLocation: {
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
+      },
+      distanceFromSite,
+      locationVerified,
+      faceDistance,
+      faceVerified,
     });
+
+    const flags = [];
+
+    if (locationVerified === false) {
+      flags.push(`${distanceFromSite}m from the registered site location`);
+    }
+
+    if (faceVerified === false) {
+      flags.push("face did not match the enrolled profile");
+    }
 
     res.status(201).json({
       success: true,
-      message: "Check In Successful",
+      message: flags.length
+        ? `Check In Successful — note: ${flags.join("; ")}.`
+        : "Check In Successful",
       attendance,
     });
   } catch (error) {
@@ -171,6 +322,18 @@ const checkOut = async (req, res) => {
       }
     }
 
+    // req.body can be undefined if the client sends no body at all
+    // (e.g. a PUT with no payload) — guard against that instead of
+    // destructuring straight off it.
+    const { latitude, longitude } = req.body || {};
+
+    if (latitude !== undefined && longitude !== undefined) {
+      attendance.checkOutLocation = {
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
+      };
+    }
+
     attendance.checkOut = new Date();
 
     const hours = (attendance.checkOut - attendance.checkIn) / (1000 * 60 * 60);
@@ -189,6 +352,8 @@ const checkOut = async (req, res) => {
       attendance,
     });
   } catch (error) {
+    console.error("CHECK OUT ERROR:", error);
+
     res.status(500).json({
       success: false,
       message: error.message,
@@ -241,10 +406,9 @@ const getAttendance = async (req, res) => {
 // ======================================
 const getAttendanceById = async (req, res) => {
   try {
-    const attendance = await Attendance.findById(req.params.id).populate(
-      "employee",
-      "employeeId name department",
-    ).populate("site", "siteName projectName location");
+    const attendance = await Attendance.findById(req.params.id)
+      .populate("employee", "employeeId name department")
+      .populate("site", "siteName projectName location");
 
     if (!attendance) {
       return res.status(404).json({
@@ -323,17 +487,14 @@ const updateAttendance = async (req, res) => {
     }
 
     // Only owner/admin can change attendance details.
-    if (
-      req.user.role !== "owner" &&
-      req.user.role !== "admin"
-    ) {
+    if (req.user.role !== "owner" && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
         message: "You are not authorized to update attendance.",
       });
     }
 
-    const { checkIn, checkOut, remarks, status, site: siteId } = req.body;
+    const { checkIn, checkOut, remarks, status, site: siteId } = req.body || {};
 
     if (siteId) {
       const site = await Site.findById(siteId);
@@ -445,6 +606,10 @@ const getTodayAttendance = async (req, res) => {
         checkIn: attendance.checkIn,
         checkOut: attendance.checkOut,
         site: attendance.site?.siteName,
+        locationVerified: attendance.locationVerified,
+        distanceFromSite: attendance.distanceFromSite,
+        faceVerified: attendance.faceVerified,
+        faceDistance: attendance.faceDistance,
       };
     });
 
@@ -456,6 +621,9 @@ const getTodayAttendance = async (req, res) => {
       halfDayCount: summary.filter((s) => s.status === "Half Day").length,
       leaveCount: summary.filter((s) => s.status === "Leave").length,
       notMarkedCount: summary.filter((s) => s.status === "Not Marked").length,
+      flaggedLocationCount: summary.filter((s) => s.locationVerified === false)
+        .length,
+      flaggedFaceCount: summary.filter((s) => s.faceVerified === false).length,
     };
 
     res.status(200).json({

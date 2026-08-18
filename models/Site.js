@@ -57,13 +57,7 @@ const siteSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: [
-        "Planning",
-        "Started",
-        "In Progress",
-        "Completed",
-        "On Hold",
-      ],
+      enum: ["Planning", "Started", "In Progress", "Completed", "On Hold"],
       default: "Planning",
     },
 
@@ -77,10 +71,39 @@ const siteSchema = new mongoose.Schema(
         type: String,
       },
     ],
+
+    // =============================================
+    // GPS Geofence
+    // =============================================
+    //
+    // latitude/longitude: the site's registered coordinates.
+    // null until set by Owner/Admin — checkIn's verifyLocation()
+    // relies on these being explicitly null (not just missing)
+    // to correctly skip GPS verification for sites that haven't
+    // been geo-tagged yet, instead of comparing against undefined.
+    //
+    // geofenceRadius: allowed distance in meters from the above
+    // coordinates for a check-in to count as "on site". Defaults
+    // to 200m if not set (see verifyLocation() fallback).
+    // =============================================
+    latitude: {
+      type: Number,
+      default: null,
+    },
+
+    longitude: {
+      type: Number,
+      default: null,
+    },
+
+    geofenceRadius: {
+      type: Number,
+      default: 200,
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 module.exports = mongoose.model("Site", siteSchema);

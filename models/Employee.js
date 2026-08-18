@@ -76,6 +76,32 @@ const employeeSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
+
+    // =============================================
+    // Face Recognition Enrollment
+    // =============================================
+    //
+    // faceDescriptor: a 128-number vector produced by face-api.js
+    // in the browser during enrollment (Add/Edit Employee — see
+    // enrollFace in employeeController.js). At check-in, a fresh
+    // descriptor is captured and compared against this one
+    // server-side (attendanceController.js), the same way a
+    // check-in's GPS coordinates are compared against a Site's.
+    //
+    // Only the descriptor is stored — not the enrollment photo —
+    // to keep biometric data on file to the minimum needed for
+    // matching. null until the employee is enrolled; re-enrolling
+    // simply overwrites it.
+    // =============================================
+    faceDescriptor: {
+      type: [Number],
+      default: null,
+    },
+
+    faceEnrolledAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

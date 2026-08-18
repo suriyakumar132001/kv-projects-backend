@@ -215,6 +215,97 @@ const getMyEmployee = async (req, res) => {
   }
 };
 
+// =====================================
+// Enroll / Re-enroll Face
+// =====================================
+//
+// Accepts a 128-number face descriptor computed in the browser
+// (face-api.js) during enrollment — see FaceCapture on the
+// Add/Edit Employee forms. Overwrites any existing descriptor,
+// so re-enrolling (e.g. after a bad capture) is just calling
+// this again.
+// =====================================
+
+const enrollFace = async (req, res) => {
+  try {
+    const { descriptor } = req.body;
+
+    if (
+      !Array.isArray(descriptor) ||
+      descriptor.length !== 128 ||
+      !descriptor.every((n) => typeof n === "number" && Number.isFinite(n))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid face descriptor. Please capture the face again.",
+      });
+    }
+
+    const employee = await Employee.findById(req.params.id);
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found",
+      });
+    }
+
+    employee.faceDescriptor = descriptor;
+    employee.faceEnrolledAt = new Date();
+
+    await employee.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Face enrolled successfully",
+      employee,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// =====================================
+// Remove Enrolled Face
+// =====================================
+//
+// Clears the stored descriptor so the employee shows as
+// "not enrolled" again — check-ins for them will simply skip
+// face verification (faceVerified: null) until re-enrolled.
+// =====================================
+
+const removeFace = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found",
+      });
+    }
+
+    employee.faceDescriptor = null;
+    employee.faceEnrolledAt = null;
+
+    await employee.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Face enrollment removed",
+      employee,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createEmployee,
   getEmployees,
@@ -222,4 +313,6 @@ module.exports = {
   getMyEmployee,
   updateEmployee,
   deleteEmployee,
+  enrollFace,
+  removeFace,
 };
