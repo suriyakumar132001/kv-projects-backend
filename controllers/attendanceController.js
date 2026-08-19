@@ -247,6 +247,15 @@ const checkIn = async (req, res) => {
       longitude,
     );
 
+    // Basic blink-based liveness signal from the browser (see
+    // checkBlinkLiveness in faceApiLoader.js). NOT strong
+    // anti-spoofing — see the field comment in models/Attendance.js
+    // for exactly what this does and doesn't protect against.
+    // Optional: null/undefined if the frontend didn't run/finish
+    // the check (e.g. an older client, or it timed out).
+    const livenessVerified =
+      typeof body.livenessVerified === "boolean" ? body.livenessVerified : null;
+
     const { faceDistance, faceVerified } = verifyFace(employee, faceDescriptor);
 
     const attendance = await Attendance.create({
@@ -262,6 +271,7 @@ const checkIn = async (req, res) => {
       locationVerified,
       faceDistance,
       faceVerified,
+      livenessVerified,
     });
 
     const flags = [];
@@ -272,6 +282,10 @@ const checkIn = async (req, res) => {
 
     if (faceVerified === false) {
       flags.push("face did not match the enrolled profile");
+    }
+
+    if (livenessVerified === false) {
+      flags.push("liveness check (blink) was not confirmed");
     }
 
     res.status(201).json({
@@ -385,7 +399,10 @@ const getAttendance = async (req, res) => {
 
     const attendance = await Attendance.find(query)
       .populate("employee", "employeeId name department")
-      .populate("site", "siteName projectName location")
+      .populate(
+        "site",
+        "siteName projectName location latitude longitude geofenceRadius",
+      )
       .sort({ attendanceDate: -1 });
 
     res.status(200).json({

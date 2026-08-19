@@ -115,6 +115,38 @@ const attendanceSchema = new mongoose.Schema(
       type: Boolean,
       default: null,
     },
+
+    // =============================================
+    // Liveness (basic anti-photo check)
+    // =============================================
+    //
+    // IMPORTANT — LIMITATION, read before relying on this:
+    // This is a lightweight, free, on-device blink check (see
+    // checkBlinkLiveness in faceApiLoader.js on the frontend) — it
+    // confirms the eyes closed and reopened once during capture,
+    // which a static printed photo or a still image cannot do.
+    //
+    // It is NOT strong liveness/anti-spoofing security. It does
+    // NOT protect against:
+    //   - a pre-recorded video of the real employee blinking, held
+    //     up to the camera
+    //   - a photo/video played on another phone or screen
+    //   - more sophisticated 3D masks or deepfake playback
+    //
+    // Treat this the same as locationVerified/faceVerified: a
+    // signal for Admin/Owner to review, not a hard security
+    // guarantee. For genuinely strong liveness detection, a paid
+    // liveness-detection API/SDK would be required — out of scope
+    // here per the "free/open-source only" requirement.
+    //
+    // null = not checked (e.g. enrollment flow, which doesn't
+    // require it; or the browser/model failed before the check
+    // could run).
+    // =============================================
+    livenessVerified: {
+      type: Boolean,
+      default: null,
+    },
   },
   {
     timestamps: true,

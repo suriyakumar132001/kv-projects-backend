@@ -83,6 +83,7 @@ const getEmployees = async (req, res) => {
     }
 
     const employees = await Employee.find(query)
+      .select("-faceDescriptor")
       .populate("createdBy", "name email")
       .sort({ createdAt: -1 })
       .skip((Number(page) - 1) * Number(limit))
@@ -112,10 +113,9 @@ const getEmployees = async (req, res) => {
 
 const getEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findById(req.params.id).populate(
-      "createdBy",
-      "name email",
-    );
+    const employee = await Employee.findById(req.params.id)
+      .select("-faceDescriptor")
+      .populate("createdBy", "name email");
 
     if (!employee) {
       return res.status(404).json({
@@ -210,7 +210,9 @@ const deleteEmployee = async (req, res) => {
 
 const getMyEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ user: req.user._id });
+    const employee = await Employee.findOne({ user: req.user._id }).select(
+      "-faceDescriptor",
+    );
 
     if (!employee) {
       return res.status(404).json({
