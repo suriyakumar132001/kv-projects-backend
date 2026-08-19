@@ -67,6 +67,135 @@ const getSites = async (req, res) => {
 };
 
 // =========================================
+// Get Single Site
+// =========================================
+//
+// Added alongside updateSite/deleteSite below — the frontend's
+// EditSite/SiteDetails pages already call GET /sites/:id (see
+// siteService.getSite) but no matching route/controller existed,
+// which is what left the geofence lat/long/radius fields (used by
+// the attendance geofence check — see verifyLocation() in
+// attendanceController.js) impossible to view or edit after a site
+// was first created.
+// =========================================
+
+const getSiteById = async (req, res) => {
+  try {
+    const site = await Site.findById(req.params.id)
+      .populate("owner", "name email role")
+      .populate("siteEngineer", "name email role");
+
+    if (!site) {
+      return res.status(404).json({
+        success: false,
+        message: "Site not found",
+      });
+    }
+
+    // Site Engineers may only view sites assigned to them.
+    if (
+      req.user.role === "siteengineer" &&
+      (!site.siteEngineer ||
+        site.siteEngineer._id.toString() !== req.user._id.toString())
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view sites assigned to you.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      site,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// =========================================
+// Update Site
+// =========================================
+//
+// Owner/Admin only. This is what lets an existing site's geofence
+// (latitude, longitude, geofenceRadius) be set/corrected after
+// creation — required for attendance's GPS geofence validation to
+// work on sites that weren't geo-tagged at creation time.
+// =========================================
+
+const updateSite = async (req, res) => {
+  try {
+    const site = await Site.findById(req.params.id);
+
+    if (!site) {
+      return res.status(404).json({
+        success: false,
+        message: "Site not found",
+      });
+    }
+
+    // siteEngineer reassignment stays on the dedicated
+    // assign-engineer endpoint (keeps the assignedSites bookkeeping
+    // on User in one place) — ignore it here if sent.
+    const { siteEngineer, ...updatableFields } = req.body || {};
+
+    Object.assign(site, updatableFields);
+
+    await site.save();
+
+    const updatedSite = await Site.findById(site._id)
+      .populate("owner", "name email role")
+      .populate("siteEngineer", "name email role");
+
+    res.status(200).json({
+      success: true,
+      message: "Site updated successfully",
+      site: updatedSite,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// =========================================
+// Delete Site
+// =========================================
+//
+// Owner/Admin only.
+// =========================================
+
+const deleteSite = async (req, res) => {
+  try {
+    const site = await Site.findById(req.params.id);
+
+    if (!site) {
+      return res.status(404).json({
+        success: false,
+        message: "Site not found",
+      });
+    }
+
+    await site.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: "Site deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// =========================================
 // Assign Site Engineer
 // =========================================
 
@@ -122,7 +251,7 @@ const assignEngineer = async (req, res) => {
     // Add site to engineer if not already assigned
     if (
       !engineer.assignedSites.some(
-        (id) => id.toString() === site._id.toString()
+        (id) => id.toString() === site._id.toString(),
       )
     ) {
       engineer.assignedSites.push(site._id);
@@ -151,5 +280,8 @@ const assignEngineer = async (req, res) => {
 module.exports = {
   createSite,
   getSites,
+  getSiteById,
+  updateSite,
+  deleteSite,
   assignEngineer,
 };
