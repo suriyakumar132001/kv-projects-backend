@@ -34,6 +34,7 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const assetRoutes = require("./routes/assetRoutes");
 const clientRoutes = require("./routes/clientRoutes");
+const leadRoutes = require("./routes/leadRoutes");
 const quotationRoutes = require("./routes/quotationRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
@@ -157,6 +158,8 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/assets", assetRoutes);
 
 app.use("/api/clients", clientRoutes);
+
+app.use("/api/leads", leadRoutes);
 
 // Mounted alongside clientRoutes on the same prefix —
 // adds /:id/activate-portal and /:id/deactivate-portal
