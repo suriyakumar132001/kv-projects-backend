@@ -27,6 +27,7 @@ const permissions = {
   admin: {
     employees: { view: true, create: true, edit: true, delete: true },
     clients: { view: true, create: true, edit: true, delete: true },
+    leads: { view: true, create: true, edit: true, delete: false },
     vendors: { view: true, create: true, edit: true, delete: true },
     sites: { view: true, create: true, edit: true, delete: false },
     inventory: { view: true, create: true, edit: true, delete: false },
@@ -73,6 +74,7 @@ const permissions = {
       export: true,
     },
     clients: { view: true },
+    leads: { view: true, create: true, edit: true, delete: false },
     vendors: { view: true },
     analytics: { view: true, export: true },
   },
