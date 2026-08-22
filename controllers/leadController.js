@@ -1,9 +1,11 @@
+// =========================================
+// KV Projects ERP
+// Lead Controller (Sales & CRM pipeline)
+// =========================================
+
 const Lead = require("../models/Lead");
 const Client = require("../models/Client");
-const User = require("../models/User");
-const {
-  createNotificationForMany,
-} = require("../services/notificationService");
+const { createNotification } = require("../services/notificationService");
 
 // =====================================
 // Create Lead
@@ -16,20 +18,16 @@ const createLead = async (req, res) => {
       createdBy: req.user._id,
     });
 
-    // Notify whoever the lead was assigned to (if anyone)
-    try {
-      if (lead.assignedTo) {
-        await createNotificationForMany([lead.assignedTo], {
-          type: "lead_followup",
-          title: "New Lead Assigned",
-          message: `${lead.leadName} (${lead.companyName || "no company"}) was assigned to you`,
-          link: `/leads/view/${lead._id}`,
-          relatedModel: "Lead",
-          relatedId: lead._id,
-        });
-      }
-    } catch (notifyErr) {
-      console.error("Notification error (create lead):", notifyErr.message);
+    if (lead.assignedTo) {
+      await createNotification({
+        recipient: lead.assignedTo,
+        title: "New Lead Assigned",
+        message: `${lead.leadName} was assigned to you.`,
+        type: "general",
+        link: `/leads/view/${lead._id}`,
+        relatedModel: "Lead",
+        relatedId: lead._id,
+      }).catch(() => {});
     }
 
     res.status(201).json({
@@ -38,31 +36,31 @@ const createLead = async (req, res) => {
       lead,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // =====================================
 // Get All Leads
-// Optional ?stage= filter for board columns,
-// ?assignedTo= to scope a rep's own pipeline
+// Optional query params: stage, assignedTo
 // =====================================
 
 const getLeads = async (req, res) => {
   try {
-    const { stage, assignedTo } = req.query;
+    const filter = {};
 
-    const query = {};
-    if (stage) query.stage = stage;
-    if (assignedTo) query.assignedTo = assignedTo;
+    if (req.query.stage) filter.stage = req.query.stage;
+    if (req.query.assignedTo) filter.assignedTo = req.query.assignedTo;
 
-    const leads = await Lead.find(query)
+    // Salespeople who aren't owner/admin only see their own leads.
+    if (!["owner", "admin"].includes(req.user.role)) {
+      filter.assignedTo = req.user._id;
+    }
+
+    const leads = await Lead.find(filter)
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
-      .sort({ updatedAt: -1 });
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -70,10 +68,7 @@ const getLeads = async (req, res) => {
       leads,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -87,29 +82,22 @@ const getLead = async (req, res) => {
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
       .populate("notes.createdBy", "name")
-      .populate("convertedClient", "clientName status");
+      .populate("convertedClient", "clientName companyName");
 
     if (!lead) {
-      return res.status(404).json({
-        success: false,
-        message: "Lead not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Lead not found" });
     }
 
-    res.status(200).json({
-      success: true,
-      lead,
-    });
+    res.status(200).json({ success: true, lead });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // =====================================
-// Update Lead (details, not stage — see updateLeadStage)
+// Update Lead
 // =====================================
 
 const updateLead = async (req, res) => {
@@ -117,110 +105,61 @@ const updateLead = async (req, res) => {
     const lead = await Lead.findById(req.params.id);
 
     if (!lead) {
-      return res.status(404).json({
-        success: false,
-        message: "Lead not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Lead not found" });
     }
 
-    // Stage changes go through updateLeadStage so the notes
-    // timeline and notifications stay consistent — strip it
-    // here if someone sends it through this route by mistake.
-    const { stage, ...rest } = req.body;
-
-    const previousAssignee = lead.assignedTo?.toString();
-
-    const updatedLead = await Lead.findByIdAndUpdate(
-      req.params.id,
-      rest,
-      {
-        new: true,
-        runValidators: true,
-      },
-    );
-
-    // Notify the newly assigned rep, if reassigned
-    try {
-      const newAssignee = updatedLead.assignedTo?.toString();
-      if (newAssignee && newAssignee !== previousAssignee) {
-        await createNotificationForMany([updatedLead.assignedTo], {
-          type: "lead_followup",
-          title: "Lead Assigned to You",
-          message: `${updatedLead.leadName} (${updatedLead.companyName || "no company"}) was assigned to you`,
-          link: `/leads/view/${updatedLead._id}`,
-          relatedModel: "Lead",
-          relatedId: updatedLead._id,
-        });
-      }
-    } catch (notifyErr) {
-      console.error("Notification error (reassign lead):", notifyErr.message);
-    }
+    const updated = await Lead.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
 
     res.status(200).json({
       success: true,
       message: "Lead Updated Successfully",
-      lead: updatedLead,
+      lead: updated,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // =====================================
-// Update Lead Stage
-// Drives the Kanban board — moving a card between columns.
+// Move Lead to a New Stage
 // =====================================
 
-const updateLeadStage = async (req, res) => {
+const updateStage = async (req, res) => {
   try {
     const { stage, lostReason } = req.body;
 
-    const validStages = ["New Lead", "Contacted", "On Hold", "Lost", "Converted"];
-
+    const validStages = [
+      "New Lead",
+      "Contacted",
+      "On Hold",
+      "Lost",
+      "Converted",
+    ];
     if (!validStages.includes(stage)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid stage",
-      });
+      return res.status(400).json({ success: false, message: "Invalid stage" });
     }
 
     const lead = await Lead.findById(req.params.id);
-
     if (!lead) {
-      return res.status(404).json({
-        success: false,
-        message: "Lead not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Lead not found" });
     }
 
-    if (lead.stage === "Converted") {
+    if (stage === "Converted" && lead.stage !== "Converted") {
       return res.status(400).json({
         success: false,
-        message: "A converted lead cannot change stage. Manage it via the Client record instead.",
+        message: "Use the Convert action to move a lead to Converted.",
       });
     }
 
-    const previousStage = lead.stage;
-
     lead.stage = stage;
-
-    if (stage === "Lost") {
-      lead.lostReason = lostReason || lead.lostReason;
-    }
-
-    if (stage === "Contacted") {
-      lead.lastContactedAt = new Date();
-    }
-
-    lead.notes.push({
-      text: `Stage changed from ${previousStage} to ${stage}${
-        stage === "Lost" && lostReason ? `: ${lostReason}` : ""
-      }`,
-      createdBy: req.user._id,
-    });
+    if (stage === "Lost") lead.lostReason = lostReason || "";
 
     await lead.save();
 
@@ -230,10 +169,7 @@ const updateLeadStage = async (req, res) => {
       lead,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -241,32 +177,30 @@ const updateLeadStage = async (req, res) => {
 // Add a Follow-up Note
 // =====================================
 
-const addLeadNote = async (req, res) => {
+const addNote = async (req, res) => {
   try {
     const { text, nextFollowUpDate } = req.body;
 
-    if (!text) {
-      return res.status(400).json({
-        success: false,
-        message: "Note text is required",
-      });
+    if (!text || !text.trim()) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Note text is required" });
     }
 
     const lead = await Lead.findById(req.params.id);
-
     if (!lead) {
-      return res.status(404).json({
-        success: false,
-        message: "Lead not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Lead not found" });
     }
 
-    lead.notes.push({ text, createdBy: req.user._id });
-    lead.lastContactedAt = new Date();
+    lead.notes.push({
+      text: text.trim(),
+      nextFollowUpDate: nextFollowUpDate || null,
+      createdBy: req.user._id,
+    });
 
-    if (nextFollowUpDate) {
-      lead.nextFollowUpDate = nextFollowUpDate;
-    }
+    if (nextFollowUpDate) lead.nextFollowUpDate = nextFollowUpDate;
 
     await lead.save();
 
@@ -276,73 +210,69 @@ const addLeadNote = async (req, res) => {
       lead,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // =====================================
-// Convert Lead to Client
-// Creates a real Client record and marks the lead Converted.
+// Convert Lead -> Client
+//
+// Duplicate-safe: matches an existing Client by email, phone, or
+// company name before creating a new one, so the same prospect
+// never ends up with two Client records.
 // =====================================
 
-const convertLeadToClient = async (req, res) => {
+const convertToClient = async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id);
 
     if (!lead) {
-      return res.status(404).json({
-        success: false,
-        message: "Lead not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Lead not found" });
     }
 
-    if (lead.stage === "Converted") {
+    if (lead.stage === "Converted" && lead.convertedClient) {
       return res.status(400).json({
         success: false,
-        message: "This lead has already been converted",
+        message: "Lead has already been converted",
       });
     }
 
-    if (!lead.email) {
-      return res.status(400).json({
-        success: false,
-        message: "Lead needs an email on file before it can be converted to a client",
+    // Look for an existing client to avoid duplicates
+    const orConditions = [{ phone: lead.phone }];
+    if (lead.email) orConditions.push({ email: lead.email });
+    if (lead.companyName) orConditions.push({ companyName: lead.companyName });
+
+    let client = await Client.findOne({ $or: orConditions });
+
+    if (!client) {
+      client = await Client.create({
+        clientName: lead.leadName,
+        companyName: lead.companyName || "",
+        email: lead.email || `${lead.phone}@placeholder.local`,
+        phone: lead.phone,
+        projectName: lead.projectType || "",
+        status: "Lead",
+        createdBy: req.user._id,
       });
     }
-
-    const client = await Client.create({
-      clientName: lead.leadName,
-      companyName: lead.companyName,
-      email: lead.email,
-      phone: lead.phone,
-      projectName: req.body.projectName || "",
-      status: "Lead", // still a client-side "Lead" status until a project kicks off
-      createdBy: req.user._id,
-    });
 
     lead.stage = "Converted";
     lead.convertedClient = client._id;
-    lead.notes.push({
-      text: `Converted to Client record (${client.clientName})`,
-      createdBy: req.user._id,
-    });
+    lead.convertedAt = new Date();
+    lead.convertedBy = req.user._id;
 
     await lead.save();
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message: "Lead Converted to Client",
-      client,
+      message: "Lead converted to client",
       lead,
+      client,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -353,25 +283,19 @@ const convertLeadToClient = async (req, res) => {
 const deleteLead = async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id);
-
     if (!lead) {
-      return res.status(404).json({
-        success: false,
-        message: "Lead not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Lead not found" });
     }
 
     await lead.deleteOne();
 
-    res.status(200).json({
-      success: true,
-      message: "Lead Deleted Successfully",
-    });
+    res
+      .status(200)
+      .json({ success: true, message: "Lead Deleted Successfully" });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -380,8 +304,8 @@ module.exports = {
   getLeads,
   getLead,
   updateLead,
-  updateLeadStage,
-  addLeadNote,
-  convertLeadToClient,
+  updateStage,
+  addNote,
+  convertToClient,
   deleteLead,
 };

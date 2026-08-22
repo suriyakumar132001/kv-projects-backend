@@ -1,14 +1,13 @@
-const mongoose = require("mongoose");
-
-// =============================================
-// Lead
+// =========================================
+// KV Projects ERP
+// Lead Model (Sales & CRM pipeline)
 //
-// Sales pipeline entry — separate from Client on purpose.
-// A Lead is a prospect that hasn't been won yet; once it
-// converts, we create a real Client (and optionally a
-// Quotation off it) and mark the Lead as "Converted" rather
-// than deleting it, so the sales history stays intact.
-// =============================================
+// Field names/enums are matched exactly to what the existing
+// frontend (LeadBoard.jsx, CreateLead.jsx, LeadDetails.jsx,
+// leadService.js) already sends and expects back.
+// =========================================
+
+const mongoose = require("mongoose");
 
 const leadSchema = new mongoose.Schema(
   {
@@ -25,14 +24,15 @@ const leadSchema = new mongoose.Schema(
 
     email: {
       type: String,
-      default: "",
       lowercase: true,
       trim: true,
+      default: "",
     },
 
     phone: {
       type: String,
       required: true,
+      trim: true,
     },
 
     projectType: {
@@ -40,31 +40,29 @@ const leadSchema = new mongoose.Schema(
       default: "",
     },
 
-    // Where the lead came from — Referral, Website, Site Visit, etc.
-    // Free text, kept as a plain string so sales can enter anything.
     source: {
       type: String,
-      default: "",
+      enum: [
+        "Referral",
+        "Website",
+        "Site Visit",
+        "Phone Enquiry",
+        "Social Media",
+        "Other",
+      ],
+      default: "Referral",
+    },
+
+    stage: {
+      type: String,
+      enum: ["New Lead", "Contacted", "On Hold", "Lost", "Converted"],
+      default: "New Lead",
     },
 
     estimatedValue: {
       type: Number,
       default: 0,
-    },
-
-    // ---------------------------------------------
-    // Pipeline stage
-    // ---------------------------------------------
-    stage: {
-      type: String,
-      enum: ["New Lead", "Contacted", "On Hold", "Lost", "Converted"],
-      default: "New Lead",
-      index: true,
-    },
-
-    lostReason: {
-      type: String,
-      default: "",
+      min: 0,
     },
 
     assignedTo: {
@@ -78,32 +76,37 @@ const leadSchema = new mongoose.Schema(
       default: null,
     },
 
-    lastContactedAt: {
-      type: Date,
-      default: null,
+    lostReason: {
+      type: String,
+      default: "",
     },
 
-    // ---------------------------------------------
-    // Follow-up / activity log
-    // Every stage change and manually-added note lands here,
-    // newest last, so LeadDetails can render it as a timeline.
-    // ---------------------------------------------
+    // Follow-up / activity notes, newest last.
     notes: [
       {
         text: { type: String, required: true },
-        createdBy: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
+        nextFollowUpDate: { type: Date, default: null },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         createdAt: { type: Date, default: Date.now },
       },
     ],
 
-    // Set once the lead converts — traces back to the Client
-    // record it became.
+    // Set once the lead is converted — links forward to the
+    // Client record so history isn't lost.
     convertedClient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Client",
+      default: null,
+    },
+
+    convertedAt: {
+      type: Date,
+      default: null,
+    },
+
+    convertedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       default: null,
     },
 
@@ -117,5 +120,11 @@ const leadSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+// Frequently filtered/sorted fields
+leadSchema.index({ stage: 1 });
+leadSchema.index({ assignedTo: 1 });
+leadSchema.index({ createdAt: -1 });
+leadSchema.index({ nextFollowUpDate: 1 });
 
 module.exports = mongoose.model("Lead", leadSchema);
