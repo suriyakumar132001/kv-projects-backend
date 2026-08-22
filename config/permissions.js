@@ -27,7 +27,6 @@ const permissions = {
   admin: {
     employees: { view: true, create: true, edit: true, delete: true },
     clients: { view: true, create: true, edit: true, delete: true },
-    leads: { view: true, create: true, edit: true, delete: false },
     vendors: { view: true, create: true, edit: true, delete: true },
     sites: { view: true, create: true, edit: true, delete: false },
     inventory: { view: true, create: true, edit: true, delete: false },
@@ -37,6 +36,7 @@ const permissions = {
     payments: { view: true, create: true, edit: true, delete: false },
     expenses: { view: true, create: true, edit: true, delete: false },
     quotations: { view: true, create: true, edit: true, delete: false },
+    leads: { view: true, create: true, edit: true, delete: false },
     attendance: { view: true, create: true, edit: false, delete: false },
     payroll: { view: true, create: false, edit: false, delete: false },
     leave: { view: true, create: false, edit: false, approve: true },
@@ -74,8 +74,8 @@ const permissions = {
       export: true,
     },
     clients: { view: true },
-    leads: { view: true, create: true, edit: true, delete: false },
     vendors: { view: true },
+    leads: { view: true, create: true, edit: true, delete: false },
     analytics: { view: true, export: true },
   },
 

@@ -10,16 +10,13 @@ const {
   getLeads,
   getLead,
   updateLead,
-  updateLeadStage,
-  addLeadNote,
-  convertLeadToClient,
+  updateStage,
+  addNote,
+  convertToClient,
   deleteLead,
 } = require("../controllers/leadController");
 
-// =====================================
-// Create Lead
-// =====================================
-
+// Matches the frontend's canCreate check: owner, admin, accountant
 router.post(
   "/",
   protect,
@@ -27,31 +24,20 @@ router.post(
   createLead,
 );
 
-// =====================================
-// Get All Leads
-// =====================================
-
+// Any authenticated staff role can view (own leads only, unless owner/admin — enforced in controller)
 router.get(
   "/",
   protect,
-  authorize("owner", "admin", "accountant"),
+  authorize("owner", "admin", "accountant", "hr", "siteengineer"),
   getLeads,
 );
-
-// =====================================
-// Get Single Lead
-// =====================================
 
 router.get(
   "/:id",
   protect,
-  authorize("owner", "admin", "accountant"),
+  authorize("owner", "admin", "accountant", "hr", "siteengineer"),
   getLead,
 );
-
-// =====================================
-// Update Lead
-// =====================================
 
 router.put(
   "/:id",
@@ -60,48 +46,29 @@ router.put(
   updateLead,
 );
 
-// =====================================
-// Update Lead Stage (Kanban move)
-// =====================================
-
 router.put(
   "/:id/stage",
   protect,
   authorize("owner", "admin", "accountant"),
-  updateLeadStage,
+  updateStage,
 );
-
-// =====================================
-// Add Follow-up Note
-// =====================================
 
 router.post(
   "/:id/notes",
   protect,
   authorize("owner", "admin", "accountant"),
-  addLeadNote,
+  addNote,
 );
 
-// =====================================
-// Convert Lead to Client
-// =====================================
-
+// Matches the frontend's canConvert check: owner, admin
 router.post(
   "/:id/convert",
   protect,
   authorize("owner", "admin"),
-  convertLeadToClient,
+  convertToClient,
 );
 
-// =====================================
-// Delete Lead
-// =====================================
-
-router.delete(
-  "/:id",
-  protect,
-  authorize("owner"),
-  deleteLead,
-);
+// Matches the frontend's canDelete check: owner
+router.delete("/:id", protect, authorize("owner"), deleteLead);
 
 module.exports = router;
