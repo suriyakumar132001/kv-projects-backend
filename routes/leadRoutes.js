@@ -6,9 +6,9 @@ const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
 const {
-  createLead,
   getLeads,
   getLead,
+  createLead,
   updateLead,
   updateStage,
   addNote,
@@ -16,26 +16,32 @@ const {
   deleteLead,
 } = require("../controllers/leadController");
 
-// Matches the frontend's canCreate check: owner, admin, accountant
-router.post(
-  "/",
-  protect,
-  authorize("owner", "admin", "accountant"),
-  createLead,
-);
+// =====================================
+// Get All Leads / Create Lead
+// =====================================
 
-// Any authenticated staff role can view (own leads only, unless owner/admin — enforced in controller)
 router.get(
   "/",
   protect,
-  authorize("owner", "admin", "accountant", "hr", "siteengineer"),
+  authorize("owner", "admin", "accountant", "hr"),
   getLeads,
 );
+
+router.post(
+  "/",
+  protect,
+  authorize("owner", "admin", "accountant", "hr"),
+  createLead,
+);
+
+// =====================================
+// Single Lead
+// =====================================
 
 router.get(
   "/:id",
   protect,
-  authorize("owner", "admin", "accountant", "hr", "siteengineer"),
+  authorize("owner", "admin", "accountant", "hr"),
   getLead,
 );
 
@@ -45,6 +51,12 @@ router.put(
   authorize("owner", "admin", "accountant"),
   updateLead,
 );
+
+router.delete("/:id", protect, authorize("owner"), deleteLead);
+
+// =====================================
+// Stage Move / Notes / Convert
+// =====================================
 
 router.put(
   "/:id/stage",
@@ -60,15 +72,11 @@ router.post(
   addNote,
 );
 
-// Matches the frontend's canConvert check: owner, admin
 router.post(
   "/:id/convert",
   protect,
   authorize("owner", "admin"),
   convertToClient,
 );
-
-// Matches the frontend's canDelete check: owner
-router.delete("/:id", protect, authorize("owner"), deleteLead);
 
 module.exports = router;

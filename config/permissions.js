@@ -36,11 +36,17 @@ const permissions = {
     payments: { view: true, create: true, edit: true, delete: false },
     expenses: { view: true, create: true, edit: true, delete: false },
     quotations: { view: true, create: true, edit: true, delete: false },
-    leads: { view: true, create: true, edit: true, delete: false },
     attendance: { view: true, create: true, edit: false, delete: false },
     payroll: { view: true, create: false, edit: false, delete: false },
     leave: { view: true, create: false, edit: false, approve: true },
     analytics: { view: true },
+    leads: {
+      view: true,
+      create: true,
+      edit: true,
+      delete: false,
+      approve: true,
+    },
   },
 
   accountant: {
@@ -75,8 +81,8 @@ const permissions = {
     },
     clients: { view: true },
     vendors: { view: true },
-    leads: { view: true, create: true, edit: true, delete: false },
     analytics: { view: true, export: true },
+    leads: { view: true, create: true, edit: true, delete: false },
   },
 
   hr: {
@@ -84,6 +90,7 @@ const permissions = {
     attendance: { view: true, create: true, edit: false, delete: false },
     payroll: { view: true, create: true, edit: true, delete: false },
     leave: { view: true, create: false, edit: false, approve: true },
+    leads: { view: true, create: true, edit: false, delete: false },
   },
 
   siteengineer: {

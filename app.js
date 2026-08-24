@@ -44,6 +44,7 @@ const emailRoutes = require("./routes/emailRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const leadRoutes = require("./routes/leadRoutes");
 const crmRoutes = require("./routes/crmRoutes");
+const essRoutes = require("./routes/essRoutes");
 
 // ===============================================
 // Client Portal Routes
@@ -160,10 +161,6 @@ app.use("/api/assets", assetRoutes);
 
 app.use("/api/clients", clientRoutes);
 
-app.use("/api/leads", leadRoutes);
-
-app.use("/api/crm", crmRoutes);
-
 // Mounted alongside clientRoutes on the same prefix —
 // adds /:id/activate-portal and /:id/deactivate-portal
 // without touching clientRoutes.js itself.
@@ -182,6 +179,12 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/pdf", pdfRoutes);
 
 app.use("/api/email", emailRoutes);
+
+app.use("/api/leads", leadRoutes);
+
+app.use("/api/crm", crmRoutes);
+
+app.use("/api/ess", essRoutes);
 
 // Client portal — separate auth domain from everything above
 app.use("/api/client-auth", clientAuthRoutes);

@@ -1,13 +1,19 @@
-// =========================================
+// ===============================================
 // KV Projects ERP
 // Lead Model (Sales & CRM pipeline)
-//
-// Field names/enums are matched exactly to what the existing
-// frontend (LeadBoard.jsx, CreateLead.jsx, LeadDetails.jsx,
-// leadService.js) already sends and expects back.
-// =========================================
+// ===============================================
 
 const mongoose = require("mongoose");
+
+const STAGES = ["New Lead", "Contacted", "On Hold", "Lost", "Converted"];
+const SOURCES = [
+  "Referral",
+  "Website",
+  "Site Visit",
+  "Phone Enquiry",
+  "Social Media",
+  "Other",
+];
 
 const leadSchema = new mongoose.Schema(
   {
@@ -15,18 +21,20 @@ const leadSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: 150,
     },
 
     companyName: {
       type: String,
       default: "",
+      trim: true,
     },
 
     email: {
       type: String,
+      default: "",
       lowercase: true,
       trim: true,
-      default: "",
     },
 
     phone: {
@@ -38,31 +46,32 @@ const leadSchema = new mongoose.Schema(
     projectType: {
       type: String,
       default: "",
+      trim: true,
     },
 
     source: {
       type: String,
-      enum: [
-        "Referral",
-        "Website",
-        "Site Visit",
-        "Phone Enquiry",
-        "Social Media",
-        "Other",
-      ],
+      enum: SOURCES,
       default: "Referral",
-    },
-
-    stage: {
-      type: String,
-      enum: ["New Lead", "Contacted", "On Hold", "Lost", "Converted"],
-      default: "New Lead",
     },
 
     estimatedValue: {
       type: Number,
       default: 0,
       min: 0,
+    },
+
+    stage: {
+      type: String,
+      enum: STAGES,
+      default: "New Lead",
+    },
+
+    // Set only when stage is moved to "Lost" — optional free-text reason
+    // captured from the window.prompt() on the frontend.
+    lostReason: {
+      type: String,
+      default: "",
     },
 
     assignedTo: {
@@ -76,37 +85,36 @@ const leadSchema = new mongoose.Schema(
       default: null,
     },
 
-    lostReason: {
-      type: String,
-      default: "",
-    },
-
-    // Follow-up / activity notes, newest last.
-    notes: [
-      {
-        text: { type: String, required: true },
-        nextFollowUpDate: { type: Date, default: null },
-        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
-
-    // Set once the lead is converted — links forward to the
-    // Client record so history isn't lost.
-    convertedClient: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Client",
-      default: null,
-    },
-
-    convertedAt: {
+    lastContactedAt: {
       type: Date,
       default: null,
     },
 
-    convertedBy: {
+    // Follow-up / activity timeline — appended to via POST /:id/notes,
+    // rendered newest-first on the frontend.
+    notes: [
+      {
+        text: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        createdBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
+    // Set once the lead is converted — links to the Client record
+    // created from it. Stage is also flipped to "Converted".
+    convertedClient: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Client",
       default: null,
     },
 
@@ -121,10 +129,16 @@ const leadSchema = new mongoose.Schema(
   },
 );
 
-// Frequently filtered/sorted fields
+// ===============================================
+// Indexes
+// ===============================================
+
 leadSchema.index({ stage: 1 });
 leadSchema.index({ assignedTo: 1 });
 leadSchema.index({ createdAt: -1 });
-leadSchema.index({ nextFollowUpDate: 1 });
+leadSchema.index({ source: 1 });
+
+leadSchema.statics.STAGES = STAGES;
+leadSchema.statics.SOURCES = SOURCES;
 
 module.exports = mongoose.model("Lead", leadSchema);

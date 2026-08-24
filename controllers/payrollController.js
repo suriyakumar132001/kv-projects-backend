@@ -1,5 +1,6 @@
 const Payroll = require("../models/Payroll");
 const Employee = require("../models/Employee");
+const sendWhatsApp = require("../utils/sendWhatsApp");
 
 // =====================================
 // Generate Payroll
@@ -37,10 +38,7 @@ const createPayroll = async (req, res) => {
       Number(overtime) +
       Number(bonus);
 
-    const totalDeductions =
-      Number(pf) +
-      Number(esi) +
-      Number(professionalTax);
+    const totalDeductions = Number(pf) + Number(esi) + Number(professionalTax);
 
     const netSalary = totalEarnings - totalDeductions;
 
@@ -161,10 +159,7 @@ const updatePayroll = async (req, res) => {
       Number(overtime) +
       Number(bonus);
 
-    const totalDeductions =
-      Number(pf) +
-      Number(esi) +
-      Number(professionalTax);
+    const totalDeductions = Number(pf) + Number(esi) + Number(professionalTax);
 
     const netSalary = totalEarnings - totalDeductions;
 
@@ -184,14 +179,10 @@ const updatePayroll = async (req, res) => {
       netSalary,
     };
 
-    const updated = await Payroll.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    const updated = await Payroll.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
     res.status(200).json({
       success: true,
@@ -230,6 +221,15 @@ const markAsPaid = async (req, res) => {
       message: "Salary Marked as Paid",
       payroll,
     });
+
+    // Fire-and-forget: never block or fail this response on WhatsApp delivery.
+    const employee = await Employee.findById(payroll.employee);
+    if (employee?.phone) {
+      sendWhatsApp({
+        to: employee.phone,
+        body: `Hi ${employee.name}, your salary of ₹${payroll.netSalary} for ${payroll.month} ${payroll.year} has been credited. — KV Projects`,
+      });
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
