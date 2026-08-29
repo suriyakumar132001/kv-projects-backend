@@ -14,6 +14,7 @@ const notificationSchema = new mongoose.Schema(
         "pending_approval",
         "material_request",
         "budget_overrun",
+        "lead_followup",
         "general",
       ],
       required: true,

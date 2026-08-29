@@ -40,6 +40,20 @@ const permissions = {
     payroll: { view: true, create: false, edit: false, delete: false },
     leave: { view: true, create: false, edit: false, approve: true },
     analytics: { view: true },
+    leads: {
+      view: true,
+      create: true,
+      edit: true,
+      delete: false,
+      approve: true,
+    },
+    labourBills: {
+      view: true,
+      create: true,
+      edit: true,
+      delete: false,
+      approve: true,
+    },
   },
 
   accountant: {
@@ -75,6 +89,17 @@ const permissions = {
     clients: { view: true },
     vendors: { view: true },
     analytics: { view: true, export: true },
+    leads: { view: true, create: true, edit: true, delete: false },
+    // Accountant approves bills once the site engineer/HR has entered
+    // the timesheet — not the one filling it in day-to-day.
+    labourBills: {
+      view: true,
+      create: true,
+      edit: true,
+      delete: false,
+      approve: true,
+      export: true,
+    },
   },
 
   hr: {
@@ -82,6 +107,8 @@ const permissions = {
     attendance: { view: true, create: true, edit: false, delete: false },
     payroll: { view: true, create: true, edit: true, delete: false },
     leave: { view: true, create: false, edit: false, approve: true },
+    leads: { view: true, create: true, edit: false, delete: false },
+    labourBills: { view: true, create: true, edit: true, delete: false },
   },
 
   siteengineer: {
@@ -92,6 +119,9 @@ const permissions = {
     labour: { view: true, create: true, edit: true, delete: false },
     attendance: { view: true, create: true, edit: false, delete: false },
     inventory: { view: true },
+    // Site engineer is the one actually filling in daily timesheets,
+    // so create/edit — approval stays with accountant/admin/owner.
+    labourBills: { view: true, create: true, edit: true, delete: false },
   },
 };
 

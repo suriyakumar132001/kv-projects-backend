@@ -3,6 +3,7 @@ const Employee = require("../models/Employee");
 const Site = require("../models/Site");
 const { getDistanceInMeters } = require("../utils/geoDistance");
 const { getEuclideanDistance } = require("../utils/faceDistance");
+const sendWhatsApp = require("../utils/sendWhatsApp");
 
 // Looks up the Employee record linked to a logged-in user (used to lock
 // Site Engineers to their own attendance only).
@@ -295,6 +296,20 @@ const checkIn = async (req, res) => {
         : "Check In Successful",
       attendance,
     });
+
+    // Fire-and-forget: never block or fail the check-in response on this.
+    if (employee.phone) {
+      const timeStr = attendance.checkIn.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      sendWhatsApp({
+        to: employee.phone,
+        body: `Hi ${employee.name}, your attendance check-in at ${timeStr} has been recorded${
+          site ? ` for ${site.siteName || site.name || "your site"}` : ""
+        }.${flags.length ? " Note: " + flags.join("; ") + "." : ""}`,
+      });
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
