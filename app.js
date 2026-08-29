@@ -21,6 +21,7 @@ const siteRoutes = require("./routes/siteRoutes");
 const dprRoutes = require("./routes/dprRoutes");
 const materialRoutes = require("./routes/materialRoutes");
 const labourRoutes = require("./routes/labourRoutes");
+const labourBillRoutes = require("./routes/labourBillRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
 const purchaseOrderRoutes = require("./routes/purchaseOrderRoutes");
@@ -132,6 +133,10 @@ app.use("/api/dpr", dprRoutes);
 app.use("/api/materials", materialRoutes);
 
 app.use("/api/labours", labourRoutes);
+
+// Deliberately a separate path/collection from /api/labours (headcount
+// attendance) — this is subcontractor billing (rates, timesheets, totals).
+app.use("/api/labour-bills", labourBillRoutes);
 
 app.use("/api/expenses", expenseRoutes);
 
