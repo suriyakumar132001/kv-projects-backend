@@ -34,6 +34,17 @@ const inventorySchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Low-stock threshold for this site/material row. Used by the
+    // Advanced Dashboard's "Low Stock Inventory" widget
+    // (quantity <= reorderLevel). Defaults to 10 until someone sets
+    // a specific level per item — there's no per-material reorder
+    // config yet, so this is deliberately a plain editable number
+    // rather than something derived.
+    reorderLevel: {
+      type: Number,
+      default: 10,
+    },
+
     lastUpdated: {
       type: Date,
       default: Date.now,
