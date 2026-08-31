@@ -1,3 +1,6 @@
+const fs = require("fs");
+const path = require("path");
+
 const Employee = require("../models/Employee");
 
 // =====================================
@@ -274,10 +277,17 @@ const enrollFace = async (req, res) => {
 
     await employee.save();
 
+    // Re-fetch with the same exclusion every other employee endpoint
+    // uses — .save() returns the full in-memory doc including the
+    // descriptor we just set, which should never reach the frontend.
+    const safeEmployee = await Employee.findById(employee._id).select(
+      "-faceDescriptor",
+    );
+
     res.status(200).json({
       success: true,
       message: "Face enrolled successfully",
-      employee,
+      employee: safeEmployee,
     });
   } catch (error) {
     res.status(500).json({
@@ -325,6 +335,110 @@ const removeFace = async (req, res) => {
   }
 };
 
+// =====================================
+// Upload / Replace Profile Photo
+// =====================================
+//
+// multer (config/multer.js) has already validated the file type/size
+// and saved it to disk by the time this runs — req.file.path is the
+// on-disk location. This just records the reference and cleans up
+// whatever photo it's replacing, if any.
+// =====================================
+
+const uploadPhoto = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No photo file received.",
+      });
+    }
+
+    const employee = await Employee.findById(req.params.id);
+
+    if (!employee) {
+      // Clean up the just-uploaded file — nothing will reference it.
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found",
+      });
+    }
+
+    const oldPhotoPath = employee.profilePhoto;
+
+    // multer's destination is configured as "uploads/" (relative to the
+    // project root, i.e. where the process is started) — store the
+    // same relative path so it lines up with how app.js serves
+    // /uploads as static files.
+    employee.profilePhoto = req.file.path.replace(/\\/g, "/");
+
+    await employee.save();
+
+    // Delete the old photo file only after the new one is safely
+    // saved to the DB — if the save had failed we'd rather have an
+    // orphaned old file than a broken reference.
+    if (oldPhotoPath) {
+      fs.unlink(path.resolve(oldPhotoPath), () => {});
+    }
+
+    const safeEmployee = await Employee.findById(employee._id).select(
+      "-faceDescriptor",
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Employee photo updated successfully",
+      employee: safeEmployee,
+    });
+  } catch (error) {
+    // If we saved a file but something else failed, don't leave it
+    // orphaned on disk.
+    if (req.file) fs.unlink(req.file.path, () => {});
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// =====================================
+// Remove Profile Photo
+// =====================================
+
+const removePhoto = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found",
+      });
+    }
+
+    const oldPhotoPath = employee.profilePhoto;
+
+    employee.profilePhoto = null;
+    await employee.save();
+
+    if (oldPhotoPath) {
+      fs.unlink(path.resolve(oldPhotoPath), () => {});
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Employee photo removed",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createEmployee,
   getEmployees,
@@ -334,4 +448,6 @@ module.exports = {
   deleteEmployee,
   enrollFace,
   removeFace,
+  uploadPhoto,
+  removePhoto,
 };

@@ -4,6 +4,8 @@ const router = express.Router();
 
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
+const upload = require("../config/multer");
+const { handleUploadErrors } = require("../config/multer");
 
 const {
   createEmployee,
@@ -14,6 +16,8 @@ const {
   deleteEmployee,
   enrollFace,
   removeFace,
+  uploadPhoto,
+  removePhoto,
 } = require("../controllers/employeeController");
 
 // Create Employee
@@ -47,6 +51,21 @@ router.put("/:id/face", protect, authorize("owner", "hr"), enrollFace);
 
 // Remove Enrolled Face
 router.delete("/:id/face", protect, authorize("owner", "hr"), removeFace);
+
+// Upload / Replace Profile Photo
+// Same owner/hr restriction as updateEmployee/enrollFace above — not
+// admin, matching this project's existing convention for employee writes.
+router.post(
+  "/:id/photo",
+  protect,
+  authorize("owner", "hr"),
+  upload.single("photo"),
+  handleUploadErrors,
+  uploadPhoto,
+);
+
+// Remove Profile Photo
+router.delete("/:id/photo", protect, authorize("owner", "hr"), removePhoto);
 
 // Delete Employee
 router.delete("/:id", protect, authorize("owner"), deleteEmployee);

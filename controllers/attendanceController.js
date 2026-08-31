@@ -3,7 +3,6 @@ const Employee = require("../models/Employee");
 const Site = require("../models/Site");
 const { getDistanceInMeters } = require("../utils/geoDistance");
 const { getEuclideanDistance } = require("../utils/faceDistance");
-const sendWhatsApp = require("../utils/sendWhatsApp");
 
 // Looks up the Employee record linked to a logged-in user (used to lock
 // Site Engineers to their own attendance only).
@@ -259,6 +258,39 @@ const checkIn = async (req, res) => {
 
     const { faceDistance, faceVerified } = verifyFace(employee, faceDescriptor);
 
+    // ---------------------------------------------
+    // HARD BLOCK on face verification.
+    //
+    // Changed from the original soft-flag design (which recorded
+    // attendance either way and just noted a mismatch for later
+    // review) to a hard block: attendance is only ever created when
+    // the captured face genuinely matches the employee's enrolled
+    // descriptor. GPS/liveness remain soft-flags — only face is
+    // being hard-blocked here, per explicit request.
+    // ---------------------------------------------
+
+    if (faceVerified === false) {
+      return res.status(403).json({
+        success: false,
+        message: "Face not recognized. Please try again or contact HR.",
+      });
+    }
+
+    if (faceVerified === null) {
+      // Distinguish *why* it's null so the message is actually useful,
+      // instead of a generic failure.
+      const notEnrolled =
+        !Array.isArray(employee.faceDescriptor) ||
+        employee.faceDescriptor.length !== 128;
+
+      return res.status(400).json({
+        success: false,
+        message: notEnrolled
+          ? "Your face is not enrolled yet. Contact HR/Admin to enroll your face before checking in."
+          : "Face not detected. Please position your face in frame and try again.",
+      });
+    }
+
     const attendance = await Attendance.create({
       employee: employeeId,
       site: siteId,
@@ -281,9 +313,8 @@ const checkIn = async (req, res) => {
       flags.push(`${distanceFromSite}m from the registered site location`);
     }
 
-    if (faceVerified === false) {
-      flags.push("face did not match the enrolled profile");
-    }
+    // faceVerified is guaranteed true here — false/null both return
+    // early above — so there's nothing to flag for face anymore.
 
     if (livenessVerified === false) {
       flags.push("liveness check (blink) was not confirmed");
@@ -296,20 +327,6 @@ const checkIn = async (req, res) => {
         : "Check In Successful",
       attendance,
     });
-
-    // Fire-and-forget: never block or fail the check-in response on this.
-    if (employee.phone) {
-      const timeStr = attendance.checkIn.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      sendWhatsApp({
-        to: employee.phone,
-        body: `Hi ${employee.name}, your attendance check-in at ${timeStr} has been recorded${
-          site ? ` for ${site.siteName || site.name || "your site"}` : ""
-        }.${flags.length ? " Note: " + flags.join("; ") + "." : ""}`,
-      });
-    }
   } catch (error) {
     res.status(500).json({
       success: false,

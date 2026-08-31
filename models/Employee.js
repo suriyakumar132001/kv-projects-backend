@@ -78,6 +78,25 @@ const employeeSchema = new mongoose.Schema(
     },
 
     // =============================================
+    // Profile Photo
+    // =============================================
+    //
+    // A visible photo for display purposes (employee list, profile
+    // page, ID-card-style views) — this is a DIFFERENT thing from
+    // faceDescriptor below. This is an actual image file on disk
+    // (via the shared multer config, same as DPR site photos);
+    // faceDescriptor is an invisible 128-number vector used only
+    // for face matching and is never itself derived from this photo
+    // (they're captured independently, live, at enrollment time).
+    // Stored as a relative path e.g. "uploads/171234-56789.jpg";
+    // null until an Owner/HR uploads one.
+    // =============================================
+    profilePhoto: {
+      type: String,
+      default: null,
+    },
+
+    // =============================================
     // Face Recognition Enrollment
     // =============================================
     //
