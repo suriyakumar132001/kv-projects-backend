@@ -4,11 +4,14 @@
 // =============================================
 
 const crypto = require("crypto");
+const { OAuth2Client } = require("google-auth-library");
 
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const sendEmail = require("../utils/sendEmail");
 const provisionEmployeeForUser = require("../utils/provisionEmployeeForUser");
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const ROLE_LABELS = {
   owner: "Owner",
@@ -81,7 +84,22 @@ const CREATABLE_ROLES = ["admin", "hr", "siteengineer", "accountant"];
 
 const register = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const {
+      name,
+      email,
+      password,
+      phone,
+      // HR/employee fields — optional. When provided (from the merged
+      // "Add Employee" form), the auto-provisioned Employee record gets
+      // real data immediately instead of the bare-bones defaults.
+      department,
+      designation,
+      salary,
+      joiningDate,
+      address,
+      emergencyContact,
+      faceDescriptor,
+    } = req.body;
     let { role } = req.body;
 
     // Validation
@@ -108,14 +126,18 @@ const register = async (req, res) => {
       // ---- Bootstrap: first-ever account becomes the Owner ----
       role = "owner";
     } else {
-      // ---- Every user after the first requires an Owner/Admin caller ----
+      // ---- Every user after the first requires an Owner/Admin/HR caller ----
+      // HR was added here to support the merged "Add Employee" form (HR
+      // could already create Employee records via the old endpoint —
+      // this just extends that same permission to cover login creation
+      // too, instead of leaving HR unable to do what they could before).
       const caller = req.user;
 
-      if (!caller || !["owner", "admin"].includes(caller.role)) {
+      if (!caller || !["owner", "admin", "hr"].includes(caller.role)) {
         return res.status(403).json({
           success: false,
           message:
-            "Only the Owner or an Admin can register new users. Please log in first.",
+            "Only the Owner, an Admin, or HR can register new users. Please log in first.",
         });
       }
 
@@ -133,6 +155,16 @@ const register = async (req, res) => {
             "Admins can only create HR, Site Engineer, or Accountant accounts.",
         });
       }
+
+      // HR can only onboard field staff this way — not other HR,
+      // Accountant, or Admin accounts. Deliberately more restrictive
+      // than Admin's rule above; adjust here if that's not what you want.
+      if (caller.role === "hr" && role !== "siteengineer") {
+        return res.status(403).json({
+          success: false,
+          message: "HR can only create Site Engineer accounts.",
+        });
+      }
     }
 
     // Create User
@@ -145,24 +177,49 @@ const register = async (req, res) => {
     });
 
     // Bootstrap case: log the new Owner straight in.
-    // Owner/Admin creating staff: no token is issued for the new
+    // Owner/Admin/HR creating staff: no token is issued for the new
     // account — the caller stays logged in as themselves, and the
-    // new HR/Admin/Site Engineer logs in separately with their own credentials.
+    // new user logs in separately with their own credentials.
     let employee = null;
+    let employeeLinkFailedReason = null;
     let emailQueued = false;
 
     if (totalUsers > 0) {
-      // Auto-provision a linked Employee record (salary/department left
-      // blank for HR/Admin to fill in from the Employees page).
-      employee = await provisionEmployeeForUser({
+      // Auto-provision a linked Employee record. If the caller supplied
+      // HR fields (the merged Add Employee form), they're used
+      // immediately instead of the bare-bones defaults.
+      const provisionResult = await provisionEmployeeForUser({
         user,
         phone,
         createdById: req.user._id,
+        department,
+        designation,
+        salary,
+        joiningDate,
+        address,
+        emergencyContact,
       });
 
-      // Fire-and-forget: don't make the Owner/Admin wait for the Gmail
-      // SMTP round-trip (often several seconds) before getting a response.
-      // sendWelcomeEmail already catches its own errors and just logs them.
+      employee = provisionResult.employee;
+      employeeLinkFailedReason = provisionResult.reason;
+
+      // Optional: face captured on the Add Employee form, same
+      // validation as employeeController's enrollFace/createEmployee.
+      if (
+        employee &&
+        Array.isArray(faceDescriptor) &&
+        faceDescriptor.length === 128 &&
+        faceDescriptor.every((n) => typeof n === "number" && Number.isFinite(n))
+      ) {
+        employee.faceDescriptor = faceDescriptor;
+        employee.faceEnrolledAt = new Date();
+        await employee.save();
+      }
+
+      // Fire-and-forget: don't make the Owner/Admin/HR wait for the
+      // Gmail SMTP round-trip (often several seconds) before getting a
+      // response. sendWelcomeEmail already catches its own errors and
+      // just logs them.
       emailQueued = true;
       sendWelcomeEmail({
         name: user.name,
@@ -181,6 +238,7 @@ const register = async (req, res) => {
           : "User registered successfully. Login details are being emailed to them.",
       emailQueued,
       employeeLinked: !!employee,
+      employeeLinkFailedReason: employee ? null : employeeLinkFailedReason,
       user: {
         id: user._id,
         name: user.name,
@@ -190,6 +248,14 @@ const register = async (req, res) => {
         status: user.status,
       },
     };
+
+    if (employee) {
+      // Strip faceDescriptor even though we just received it in this
+      // same request — same defense-in-depth as every other employee
+      // endpoint, rather than making an exception here.
+      const { faceDescriptor: _omit, ...safeEmployee } = employee.toObject();
+      responseBody.employee = safeEmployee;
+    }
 
     if (totalUsers === 0) {
       responseBody.token = generateToken(user._id, user.role);
@@ -277,6 +343,103 @@ const login = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+const googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: "Google credential is required",
+      });
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return res.status(500).json({
+        success: false,
+        message: "Google OAuth is not configured on the server",
+      });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email || payload.email_verified === false) {
+      return res.status(401).json({
+        success: false,
+        message: "Google account email is not verified",
+      });
+    }
+
+    const email = payload.email.toLowerCase();
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const randomPassword = `${crypto.randomBytes(16).toString("hex")}-Google@2026`;
+
+      user = await User.create({
+        name: payload.name || email.split("@")[0],
+        email,
+        password: randomPassword,
+        role: "siteengineer",
+        profileImage: payload.picture || "",
+        googleId: payload.sub,
+        authProvider: "google",
+      });
+    } else {
+      if (user.status === "Inactive") {
+        return res.status(403).json({
+          success: false,
+          message: "Your account has been deactivated. Contact your admin.",
+        });
+      }
+
+      if (!user.googleId) {
+        user.googleId = payload.sub;
+      }
+
+      if (!user.authProvider || user.authProvider === "local") {
+        user.authProvider = "google";
+      }
+
+      if (!user.profileImage && payload.picture) {
+        user.profileImage = payload.picture;
+      }
+
+      await user.save();
+    }
+
+    const token = generateToken(user._id, user.role);
+
+    return res.status(200).json({
+      success: true,
+      message: "Google Login Successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        profileImage: user.profileImage,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    console.error("Google login error:", error);
+
+    return res.status(401).json({
+      success: false,
+      message: error.message || "Google sign-in failed",
     });
   }
 };
@@ -445,6 +608,7 @@ const resetPassword = async (req, res) => {
 module.exports = {
   register,
   login,
+  googleLogin,
   forgotPassword,
   resetPassword,
 };

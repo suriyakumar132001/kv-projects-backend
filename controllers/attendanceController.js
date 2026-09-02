@@ -386,8 +386,10 @@ const checkOut = async (req, res) => {
 
     attendance.workingHours = Number(hours.toFixed(2));
 
-    if (hours > 8) {
-      attendance.overtimeHours = Number((hours - 8).toFixed(2));
+    if (hours > 9) {
+      attendance.overtimeHours = Number((hours - 9).toFixed(2));
+    } else {
+      attendance.overtimeHours = 0;
     }
 
     await attendance.save();
@@ -580,7 +582,7 @@ const updateAttendance = async (req, res) => {
 
       attendance.workingHours = Number(hours.toFixed(2));
 
-      attendance.overtimeHours = hours > 8 ? Number((hours - 8).toFixed(2)) : 0;
+      attendance.overtimeHours = hours > 9 ? Number((hours - 9).toFixed(2)) : 0;
     }
 
     await attendance.save();

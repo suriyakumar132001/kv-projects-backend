@@ -261,7 +261,7 @@ const provisionEmployee = async (req, res) => {
       });
     }
 
-    const employee = await provisionEmployeeForUser({
+    const { employee, reason } = await provisionEmployeeForUser({
       user: targetUser,
       phone: targetUser.phone,
       createdById: req.user._id,
@@ -271,6 +271,7 @@ const provisionEmployee = async (req, res) => {
       return res.status(500).json({
         success: false,
         message:
+          reason ||
           "Could not create an Employee profile — check server logs (a duplicate email in Employees is the most common cause).",
       });
     }

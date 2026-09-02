@@ -43,6 +43,7 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const pdfRoutes = require("./routes/pdfRoutes");
 const emailRoutes = require("./routes/emailRoutes");
 const projectRoutes = require("./routes/projectRoutes");
+const materialRequestRoutes = require("./routes/materialRequestRoutes");
 const leadRoutes = require("./routes/leadRoutes");
 const crmRoutes = require("./routes/crmRoutes");
 const essRoutes = require("./routes/essRoutes");
@@ -153,6 +154,8 @@ app.use("/api/material-issues", materialIssueRoutes);
 app.use("/api/employees", employeeRoutes);
 
 app.use("/api/projects", projectRoutes);
+
+app.use("/api/material-requests", materialRequestRoutes);
 
 app.use("/api/payroll", payrollRoutes);
 

@@ -7,6 +7,7 @@ const authorize = require("../middleware/roleMiddleware");
 
 const {
   generateInvoicePDF,
+  generatePayslipPDF,
 } = require("../controllers/pdfController");
 
 router.get(
@@ -14,6 +15,12 @@ router.get(
   protect,
   authorize("owner", "admin", "hr"),
   generateInvoicePDF
+);
+
+router.get(
+  "/payslip/:id",
+  protect,
+  generatePayslipPDF
 );
 
 module.exports = router;

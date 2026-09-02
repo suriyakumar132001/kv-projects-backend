@@ -52,6 +52,19 @@ const userSchema = new mongoose.Schema(
       default: "Active",
     },
 
+    googleId: {
+      type: String,
+      default: null,
+      unique: true,
+      sparse: true,
+    },
+
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+
     // Forgot Password — stores a HASHED version of the reset token
     // (never the raw token, same principle as the password itself)
     // plus an expiry so old/unused tokens can't be reused later.

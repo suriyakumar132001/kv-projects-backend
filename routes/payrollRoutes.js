@@ -6,13 +6,22 @@ const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
 const {
+  getAttendanceSummary,
   createPayroll,
   getPayrolls,
-    getPayroll,
-    updatePayroll,
-    markAsPaid,
-    deletePayroll
+  getPayroll,
+  updatePayroll,
+  markAsPaid,
+  deletePayroll,
 } = require("../controllers/payrollController");
+
+// Get attendance summary for payroll pre-fill
+router.get(
+  "/attendance-summary",
+  protect,
+  authorize("owner", "hr", "admin"),
+  getAttendanceSummary
+);
 
 // Generate Payroll
 router.post(

@@ -38,6 +38,11 @@ const payrollSchema = new mongoose.Schema(
       default: 0,
     },
 
+    overtimeHours: {
+      type: Number,
+      default: 0,
+    },
+
     bonus: {
       type: Number,
       default: 0,
@@ -54,6 +59,36 @@ const payrollSchema = new mongoose.Schema(
     },
 
     professionalTax: {
+      type: Number,
+      default: 0,
+    },
+
+    daysInMonth: {
+      type: Number,
+      default: 0,
+    },
+
+    daysPresent: {
+      type: Number,
+      default: 0,
+    },
+
+    daysOnApprovedLeave: {
+      type: Number,
+      default: 0,
+    },
+
+    daysAbsent: {
+      type: Number,
+      default: 0,
+    },
+
+    perDaySalary: {
+      type: Number,
+      default: 0,
+    },
+
+    lopDeduction: {
       type: Number,
       default: 0,
     },

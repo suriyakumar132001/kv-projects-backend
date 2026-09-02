@@ -5,6 +5,7 @@ const router = express.Router();
 const {
   register,
   login,
+  googleLogin,
   forgotPassword,
   resetPassword,
 } = require("../controllers/authController");
@@ -16,6 +17,7 @@ const { optionalAuth } = require("../middleware/authMiddleware");
 router.post("/register", optionalAuth, register);
 
 router.post("/login", login);
+router.post("/google", googleLogin);
 
 // Forgot Password — user submits their email, gets a reset link by email
 router.post("/forgot-password", forgotPassword);
