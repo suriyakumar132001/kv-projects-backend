@@ -116,7 +116,7 @@ const checkIn = async (req, res) => {
       return res.status(403).json({
         success: false,
         message:
-          "Owner accounts cannot mark attendance. You can only view attendance records.",
+          "Managing Director accounts cannot mark attendance. You can only view attendance records.",
       });
     }
 
@@ -133,7 +133,7 @@ const checkIn = async (req, res) => {
         return res.status(400).json({
           success: false,
           message:
-            "No employee profile is linked to your account yet. Contact your Admin/Owner.",
+            "No employee profile is linked to your account yet. Contact your Admin/Managing Director.",
         });
       }
 
@@ -149,7 +149,7 @@ const checkIn = async (req, res) => {
           return res.status(400).json({
             success: false,
             message:
-              "No site is assigned to your account yet. Contact your Admin/Owner.",
+              "No site is assigned to your account yet. Contact your Admin/Managing Director.",
           });
         }
 

@@ -14,7 +14,7 @@ const provisionEmployeeForUser = require("../utils/provisionEmployeeForUser");
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const ROLE_LABELS = {
-  owner: "Owner",
+  owner: "Managing Director",
   admin: "Admin",
   hr: "HR",
   siteengineer: "Site Engineer",

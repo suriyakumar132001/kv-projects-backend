@@ -221,7 +221,7 @@ const getMyEmployee = async (req, res) => {
       return res.status(404).json({
         success: false,
         message:
-          "No employee profile is linked to your account yet. Contact your Admin/Owner.",
+          "No employee profile is linked to your account yet. Contact your Admin/Managing Director.",
       });
     }
 

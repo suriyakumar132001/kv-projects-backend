@@ -45,7 +45,7 @@ const ownerDashboard = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Welcome Owner",
+      message: "Welcome Managing Director",
       user: req.user,
       stats,
     });

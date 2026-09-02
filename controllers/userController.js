@@ -194,14 +194,14 @@ const updateUserStatus = async (req, res) => {
     if (targetUser.role === "owner") {
       return res.status(403).json({
         success: false,
-        message: "The Owner account cannot be deactivated.",
+        message: "The Managing Director account cannot be deactivated.",
       });
     }
 
     if (req.user.role === "admin" && targetUser.role === "admin") {
       return res.status(403).json({
         success: false,
-        message: "Only the Owner can manage Admin accounts.",
+        message: "Only the Managing Director can manage Admin accounts.",
       });
     }
 
@@ -247,7 +247,7 @@ const provisionEmployee = async (req, res) => {
     if (targetUser.role === "owner") {
       return res.status(400).json({
         success: false,
-        message: "The Owner account doesn't need an Employee profile.",
+        message: "The Managing Director account doesn't need an Employee profile.",
       });
     }
 
@@ -322,14 +322,14 @@ const deleteUser = async (req, res) => {
     if (targetUser.role === "owner") {
       return res.status(403).json({
         success: false,
-        message: "The Owner account cannot be deleted.",
+        message: "The Managing Director account cannot be deleted.",
       });
     }
 
     if (req.user.role === "admin" && targetUser.role === "admin") {
       return res.status(403).json({
         success: false,
-        message: "Only the Owner can manage Admin accounts.",
+        message: "Only the Managing Director can manage Admin accounts.",
       });
     }
 
