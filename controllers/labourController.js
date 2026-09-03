@@ -14,23 +14,19 @@ const createAttendance = async (req, res) => {
       remarks,
     } = req.body;
 
-    const totalLabours =
-      Number(mason) +
-      Number(helper) +
-      Number(carpenter) +
-      Number(electrician) +
-      Number(plumber) +
-      Number(painter);
+    const totalLabours = [mason, helper, carpenter, electrician, plumber, painter]
+      .map((count) => Number(count) || 0)
+      .reduce((total, count) => total + count, 0);
 
     const attendance = await Labour.create({
       site,
       siteEngineer: req.user._id,
-      mason,
-      helper,
-      carpenter,
-      electrician,
-      plumber,
-      painter,
+      mason: Number(mason) || 0,
+      helper: Number(helper) || 0,
+      carpenter: Number(carpenter) || 0,
+      electrician: Number(electrician) || 0,
+      plumber: Number(plumber) || 0,
+      painter: Number(painter) || 0,
       totalLabours,
       remarks,
     });
@@ -82,7 +78,40 @@ const getAttendance = async (req, res) => {
   }
 };
 
+const getAttendanceById = async (req, res) => {
+  try {
+    const query = { _id: req.params.id };
+
+    if (req.user.role === "siteengineer") {
+      query.siteEngineer = req.user._id;
+    }
+
+    const attendance = await Labour.findOne(query)
+      .populate("site", "siteName projectName")
+      .populate("siteEngineer", "name email");
+
+    if (!attendance) {
+      return res.status(404).json({
+        success: false,
+        message: "Labour attendance record not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      attendance,
+      labour: attendance,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createAttendance,
   getAttendance,
+  getAttendanceById,
 };

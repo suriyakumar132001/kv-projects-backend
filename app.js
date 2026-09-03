@@ -47,6 +47,7 @@ const materialRequestRoutes = require("./routes/materialRequestRoutes");
 const leadRoutes = require("./routes/leadRoutes");
 const crmRoutes = require("./routes/crmRoutes");
 const essRoutes = require("./routes/essRoutes");
+const aiChatRoutes = require("./routes/aiChatRoutes");
 
 // ===============================================
 // Client Portal Routes
@@ -193,6 +194,8 @@ app.use("/api/leads", leadRoutes);
 app.use("/api/crm", crmRoutes);
 
 app.use("/api/ess", essRoutes);
+
+app.use("/api/ai/chat", aiChatRoutes);
 
 // Client portal — separate auth domain from everything above
 app.use("/api/client-auth", clientAuthRoutes);

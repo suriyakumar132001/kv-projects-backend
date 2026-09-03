@@ -5,10 +5,10 @@
 
 const PurchaseOrder = require("../models/PurchaseOrder");
 const GRN = require("../models/GRN");
-const User = require("../models/User"); // NEW
 const {
-  createNotificationForMany,
-} = require("../services/notificationService"); // NEW
+  createNotification,
+  notifyRoles,
+} = require("../utils/createNotification");
 
 // =========================================
 // Create Purchase Order (manual / standalone)
@@ -63,20 +63,14 @@ const createPurchaseOrder = async (req, res) => {
     // authorized to do so, so this is a spend heads-up only)
     // ===============================================
     try {
-      const recipients = await User.find({ role: "owner" }).select("_id");
-
-      const recipientIds = recipients.map((u) => u._id);
-
-      if (recipientIds.length > 0) {
-        await createNotificationForMany(recipientIds, {
-          type: "general",
+      await notifyRoles(["accountant", "admin"], {
+          type: "pending_approval",
           title: "New Purchase Order Created",
           message: `PO #${purchaseOrder.poNumber} for ${purchaseOrder.materialName} (₹${purchaseOrder.totalAmount}) was created`,
-          link: `/purchase-orders/view/${purchaseOrder._id}`,
+          link: (recipient) => `/${recipient.role}/purchase-orders/view/${purchaseOrder._id}`,
           relatedModel: "PurchaseOrder",
           relatedId: purchaseOrder._id,
         });
-      }
     } catch (notifyErr) {
       console.error(
         "Notification error (create purchase order):",
@@ -205,6 +199,28 @@ const cancelPurchaseOrder = async (req, res) => {
 
     purchaseOrder.status = "Cancelled";
     await purchaseOrder.save();
+
+    try {
+      await createNotification({
+        recipient: purchaseOrder.createdBy,
+        type: "general",
+        title: "Purchase Order Cancelled",
+        message: `Purchase Order ${purchaseOrder.poNumber} was cancelled`,
+        link: (recipient) => `/${recipient?.role || "admin"}/purchase-orders/view/${purchaseOrder._id}`,
+        relatedModel: "PurchaseOrder",
+        relatedId: purchaseOrder._id,
+      });
+      await notifyRoles(["accountant"], {
+        type: "general",
+        title: "Purchase Order Cancelled",
+        message: `Purchase Order ${purchaseOrder.poNumber} was cancelled`,
+        link: (recipient) => `/${recipient.role}/purchase-orders/view/${purchaseOrder._id}`,
+        relatedModel: "PurchaseOrder",
+        relatedId: purchaseOrder._id,
+      });
+    } catch (notifyErr) {
+      console.error("Notification error (cancel purchase order):", notifyErr.message);
+    }
 
     res.status(200).json({
       success: true,

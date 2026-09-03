@@ -8,6 +8,7 @@ const authorize = require("../middleware/roleMiddleware");
 const {
   createAttendance,
   getAttendance,
+  getAttendanceById,
 } = require("../controllers/labourController");
 
 router.post(
@@ -22,6 +23,13 @@ router.get(
   protect,
   authorize("owner", "admin", "hr", "siteengineer"),
   getAttendance
+);
+
+router.get(
+  "/:id",
+  protect,
+  authorize("owner", "admin", "hr", "siteengineer"),
+  getAttendanceById
 );
 
 module.exports = router;

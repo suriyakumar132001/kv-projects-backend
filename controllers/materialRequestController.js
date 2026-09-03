@@ -5,10 +5,10 @@
 
 const MaterialRequest = require("../models/MaterialRequest");
 const PurchaseOrder = require("../models/PurchaseOrder");
-const User = require("../models/User"); // NEW
 const {
-  createNotificationForMany,
-} = require("../services/notificationService"); // NEW
+  createNotification,
+  notifyRoles,
+} = require("../utils/createNotification");
 
 // =========================================
 // Create Material Request
@@ -32,22 +32,14 @@ const createMaterialRequest = async (req, res) => {
     // NEW: Notify Owner + Admin that a request needs approval
     // ===============================================
     try {
-      const approvers = await User.find({
-        role: { $in: ["owner", "admin"] },
-      }).select("_id");
-
-      const approverIds = approvers.map((u) => u._id);
-
-      if (approverIds.length > 0) {
-        await createNotificationForMany(approverIds, {
-          type: "material_request",
-          title: "New Material Request",
-          message: `${req.user.name || "A site engineer"} requested ${quantity} ${unit} of ${materialName}`,
-          link: `/material-requests/${request._id}`,
-          relatedModel: "MaterialRequest",
-          relatedId: request._id,
-        });
-      }
+      await notifyRoles(["owner", "admin"], {
+        type: "material_request",
+        title: `New material request for ${materialName}`,
+        message: `${req.user.name || "A site engineer"} requested ${quantity} ${unit} of ${materialName}`,
+        link: (recipient) => `/${recipient.role}/material-requests`,
+        relatedModel: "MaterialRequest",
+        relatedId: request._id,
+      });
     } catch (notifyErr) {
       // Never fail the request creation because notifications failed
       console.error(
@@ -193,13 +185,14 @@ const updateRequestStatus = async (req, res) => {
     // NEW: Notify the original requester of the decision
     // ===============================================
     try {
-      await createNotificationForMany([request.requestedBy], {
+      await createNotification({
+        recipient: request.requestedBy,
         type: "material_request",
         title: `Material Request ${status}`,
         message: `Your request for ${request.materialName} was ${status.toLowerCase()}${
           status === "Rejected" && rejectionReason ? `: ${rejectionReason}` : ""
         }`,
-        link: `/material-requests/${request._id}`,
+        link: (recipient) => `/${recipient?.role || "siteengineer"}/material-requests`,
         relatedModel: "MaterialRequest",
         relatedId: request._id,
       });
@@ -281,6 +274,20 @@ const convertToPurchaseOrder = async (req, res) => {
     request.status = "Ordered";
     request.linkedPO = purchaseOrder._id;
     await request.save();
+
+    try {
+      await createNotification({
+        recipient: request.requestedBy,
+        type: "material_request",
+        title: "Material Request Converted to Purchase Order",
+        message: `Your request for ${request.materialName} became Purchase Order ${purchaseOrder.poNumber}`,
+        link: (recipient) => `/${recipient?.role || "siteengineer"}/purchase-orders/view/${purchaseOrder._id}`,
+        relatedModel: "PurchaseOrder",
+        relatedId: purchaseOrder._id,
+      });
+    } catch (notifyErr) {
+      console.error("Notification error (material request conversion):", notifyErr.message);
+    }
 
     res.status(201).json({
       success: true,

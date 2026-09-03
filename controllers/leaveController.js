@@ -1,9 +1,9 @@
 const Leave = require("../models/Leave");
 const Employee = require("../models/Employee");
-const User = require("../models/User"); // NEW
 const {
-  createNotificationForMany,
-} = require("../services/notificationService"); // NEW
+  createNotification,
+  notifyRoles,
+} = require("../utils/createNotification");
 
 const MANAGEMENT_ROLES = ["owner", "admin", "hr"];
 
@@ -51,22 +51,14 @@ const applyLeave = async (req, res) => {
     // NEW: Notify Owner + Admin + HR that a leave needs approval
     // ===============================================
     try {
-      const approvers = await User.find({
-        role: { $in: MANAGEMENT_ROLES },
-      }).select("_id");
-
-      const approverIds = approvers.map((u) => u._id);
-
-      if (approverIds.length > 0) {
-        await createNotificationForMany(approverIds, {
-          type: "pending_approval",
-          title: "New Leave Request",
-          message: `${employee.name || "An employee"} applied for ${leave.leaveType} leave (${leave.totalDays} day(s))`,
-          link: `/leave/view/${leave._id}`,
-          relatedModel: "Leave",
-          relatedId: leave._id,
-        });
-      }
+      await notifyRoles(MANAGEMENT_ROLES, {
+        type: "pending_approval",
+        title: `New leave request from ${employee.name}`,
+        message: `${employee.name} applied for ${leave.leaveType} leave (${leave.totalDays} day(s))`,
+        link: (recipient) => `/${recipient.role}/leave/view/${leave._id}`,
+        relatedModel: "Leave",
+        relatedId: leave._id,
+      });
     } catch (notifyErr) {
       console.error("Notification error (apply leave):", notifyErr.message);
     }
@@ -298,11 +290,12 @@ const approveLeave = async (req, res) => {
       const employee = await Employee.findById(leave.employee);
 
       if (employee?.user) {
-        await createNotificationForMany([employee.user], {
-          type: "pending_approval",
+        await createNotification({
+          recipient: employee.user,
+          type: "general",
           title: "Leave Approved",
           message: `Your ${leave.leaveType} leave request was approved`,
-          link: `/leave/view/${leave._id}`,
+          link: (recipient) => `/${recipient?.role || "siteengineer"}/leave/view/${leave._id}`,
           relatedModel: "Leave",
           relatedId: leave._id,
         });
@@ -352,13 +345,14 @@ const rejectLeave = async (req, res) => {
       const employee = await Employee.findById(leave.employee);
 
       if (employee?.user) {
-        await createNotificationForMany([employee.user], {
-          type: "pending_approval",
+        await createNotification({
+          recipient: employee.user,
+          type: "general",
           title: "Leave Rejected",
           message: `Your ${leave.leaveType} leave request was rejected${
             leave.remarks ? `: ${leave.remarks}` : ""
           }`,
-          link: `/leave/view/${leave._id}`,
+          link: (recipient) => `/${recipient?.role || "siteengineer"}/leave/view/${leave._id}`,
           relatedModel: "Leave",
           relatedId: leave._id,
         });
