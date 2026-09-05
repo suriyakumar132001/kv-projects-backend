@@ -1,5 +1,8 @@
 const Payment = require("../models/Payment");
 const Invoice = require("../models/Invoice");
+const recalculateInvoicePaymentStatus = require(
+  "../utils/recalculateInvoicePaymentStatus",
+);
 
 // =====================================
 // Create Payment
@@ -13,29 +16,10 @@ const createPayment = async (req, res) => {
       createdBy: req.user._id,
     });
 
-    // Calculate Total Paid
-    const payments = await Payment.find({
-      invoice: payment.invoice,
-    });
-
-    const totalPaid = payments.reduce(
-      (sum, item) => sum + item.amount,
-      0
-    );
-
     const invoice = await Invoice.findById(payment.invoice);
 
     if (invoice) {
-
-      if (totalPaid >= invoice.grandTotal) {
-        invoice.paymentStatus = "Paid";
-      } else if (totalPaid > 0) {
-        invoice.paymentStatus = "Partial";
-      } else {
-        invoice.paymentStatus = "Pending";
-      }
-
-      await invoice.save();
+      await recalculateInvoicePaymentStatus(invoice);
     }
 
     res.status(201).json({

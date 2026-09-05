@@ -6,6 +6,7 @@
 const mongoose = require("mongoose");
 const Expense = require("../models/Expense");
 const User = require("../models/User"); // NEW
+const escapeRegex = require("../utils/escapeRegex");
 const {
   createNotificationForMany,
 } = require("../services/notificationService"); // NEW
@@ -217,22 +218,23 @@ const getExpenses = async (req, res) => {
     // ---------------------------------------------
 
     if (search && search.trim()) {
+      const escapedSearch = escapeRegex(search.trim());
       query.$or = [
         {
           vendorName: {
-            $regex: search.trim(),
+            $regex: escapedSearch,
             $options: "i",
           },
         },
         {
           billNumber: {
-            $regex: search.trim(),
+            $regex: escapedSearch,
             $options: "i",
           },
         },
         {
           description: {
-            $regex: search.trim(),
+            $regex: escapedSearch,
             $options: "i",
           },
         },

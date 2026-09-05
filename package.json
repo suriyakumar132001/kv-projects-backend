@@ -29,7 +29,8 @@
     "node-cron": "^4.6.0",
     "nodemailer": "^9.0.3",
     "pdfkit": "^0.19.1",
-    "puppeteer": "^25.4.0"
+    "puppeteer": "^25.4.0",
+    "razorpay": "^2.9.8"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const Employee = require("../models/Employee");
+const escapeRegex = require("../utils/escapeRegex");
 
 // =====================================
 // Create Employee
@@ -65,8 +66,8 @@ const getEmployees = async (req, res) => {
     // Search by Name or Email
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
+        { name: { $regex: escapeRegex(search), $options: "i" } },
+        { email: { $regex: escapeRegex(search), $options: "i" } },
       ];
     }
 

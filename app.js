@@ -63,6 +63,7 @@ const aiChatRoutes = require("./routes/aiChatRoutes");
 const clientAuthRoutes = require("./routes/clientAuthRoutes");
 const clientPortalRoutes = require("./routes/clientPortalRoutes");
 const clientPortalAdminRoutes = require("./routes/clientPortalAdminRoutes");
+const razorpayWebhookRoutes = require("./routes/razorpayWebhookRoutes");
 
 // ===============================================
 // Create Express App
@@ -88,6 +89,12 @@ app.use(
 );
 
 app.use(morgan("dev"));
+
+app.use(
+  "/api/webhooks",
+  express.raw({ type: "application/json" }),
+  razorpayWebhookRoutes,
+);
 
 app.use(express.json({ limit: "10mb" }));
 

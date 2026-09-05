@@ -26,11 +26,26 @@ const paymentSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["Cash", "Bank Transfer", "Cheque", "UPI"],
+      enum: ["Cash", "Bank Transfer", "Cheque", "UPI", "Razorpay"],
       default: "Cash",
     },
 
     transactionId: {
+      type: String,
+      default: "",
+    },
+
+    razorpayOrderId: {
+      type: String,
+      default: "",
+    },
+
+    razorpayPaymentId: {
+      type: String,
+      default: "",
+    },
+
+    razorpaySignature: {
       type: String,
       default: "",
     },
@@ -43,7 +58,7 @@ const paymentSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
   },
   {
